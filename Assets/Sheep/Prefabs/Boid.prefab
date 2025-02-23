@@ -64,7 +64,7 @@ MeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 10303, guid: 0000000000000000f000000000000000, type: 0}
+  - {fileID: 2100000, guid: 11005d4a1ea20434bbd6e2dbb4df7aeb, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -150,15 +150,23 @@ MonoBehaviour:
   speed: 3.4
   rotationSpeed: 5
   neighborRadius: 12.69
+  deathVFXPrefab: {fileID: 3589807288391457214, guid: 47fa8728959e6ac4bad426cb970a9769, type: 3}
   avoidanceRadius: 1.56
   avoidanceTags:
   - Obstacle
+  - Player
   alignmentWeight: 0.9
   cohesionWeight: 0.6
   separationWeight: 3.2
   targetFollowWeight: 2.5
   obstacleAvoidanceWeight: 5.5
-  groundCheckDistance: 2
+  currentState: 0
+  panicDuration: 15
+  health: 1
+  playerDetectionRange: 20
   obstacleCheckDistance: 4
   debugAvoidance: 0
+  debugPlayerDetection: 0
+  debugStateChanges: 0
   target: {fileID: 0}
+  boidRenderer: {fileID: 0}
