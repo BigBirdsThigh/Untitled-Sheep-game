@@ -1,5 +1,6 @@
 using UnityEngine;
 using System.Collections.Generic;
+using System.Collections;
 using System.Linq;
 
 public class BoidManager : MonoBehaviour
@@ -22,11 +23,26 @@ public class BoidManager : MonoBehaviour
     private GameObject roamNode; // Best node for roaming
     private GameObject panicNode; // Best node for panicking
 
+    
+
+    public static BoidManager Instance { get; private set; } // Singleton Instance
+
+
+    void Awake()
+    {
+        if (Instance == null){
+            Instance = this;
+        }else{
+            Destroy(gameObject);
+        }
+    }
+
     void Start()
     {
-        SpawnBoids();
+        target = this.transform;
         CacheNodes(); // Get all nodes from the scene
-        UpdateBestNodes();
+        ResetRound(boidCount);
+        //UpdateBestNodes();
     }
 
     void FixedUpdate()
@@ -35,6 +51,13 @@ public class BoidManager : MonoBehaviour
 
         int regroupingBoids = GetRegroupingCount();
         int totalBoids = boids.Count;
+
+        // Win condition
+        if(totalBoids == 0 && !gameOverTriggered){
+            gameOverTriggered = true; // Prevent multiple triggers
+            Invoke(nameof(CheckForWin), 2.5f); // Wait 2.5s before checking
+            return;
+        }
 
         if (regroupingBoids >= totalBoids * 0.7f)
         {
@@ -91,6 +114,97 @@ public class BoidManager : MonoBehaviour
         }
     }
 
+    public void ResetRound(int numBoids)
+    {
+        gameOverTriggered = false;
+
+        // Find a good spawn using Best First Search
+        GameObject newStartNode = FindGoodSpawn();
+        if (newStartNode != null)
+        {
+            transform.position = newStartNode.transform.position;
+        }
+
+        StartCoroutine(DelayedSpawn(numBoids)); // Short delay before spawning
+
+        UpdateBestNodes(); // Reset node states
+    }
+
+    private IEnumerator DelayedSpawn(int numBoids)
+    {
+        yield return new WaitForSeconds(0.5f); // Small delay for positioning
+        SpawnBoids(numBoids);
+    }
+
+    private IEnumerator CheckForWinAfterDelay()
+    {
+        yield return new WaitForSecondsRealtime(2.5f); // Runs even when paused
+        CheckForWin();
+    }
+    
+
+    // Best First Search with duplicate-score handling
+    GameObject FindGoodSpawn()
+    {
+        if (nodes.Count == 0) return null;
+
+        SortedDictionary<float, List<GameObject>> priorityQueue = new SortedDictionary<float, List<GameObject>>();
+        GameObject startNode = nodes[Random.Range(0, nodes.Count)];
+
+        float startScore = EvaluateNode(startNode);
+        priorityQueue[startScore] = new List<GameObject> { startNode };
+
+        GameObject bestNode = startNode;
+        float bestScore = float.MinValue;
+
+        while (priorityQueue.Count > 0)
+        {
+            float score = priorityQueue.Keys.Last(); // Get the highest score
+            List<GameObject> nodeList = priorityQueue[score];
+
+            GameObject currentNode = nodeList[0];
+            nodeList.RemoveAt(0);
+            if (nodeList.Count == 0) priorityQueue.Remove(score);
+
+            if (score > bestScore)
+            {
+                bestScore = score;
+                bestNode = currentNode;
+            }
+
+            // Explore neighbors
+            foreach (GameObject neighbor in nodes)
+            {
+                if (Vector3.Distance(currentNode.transform.position, neighbor.transform.position) < 5f)
+                {
+                    float neighborScore = EvaluateNode(neighbor);
+                    if (!priorityQueue.ContainsKey(neighborScore))
+                        priorityQueue[neighborScore] = new List<GameObject>();
+                    priorityQueue[neighborScore].Add(neighbor);
+                }
+            }
+        }
+
+        return bestNode;
+    }
+
+
+    // evaluate node quality for new spawn
+    float EvaluateNode(GameObject node)
+    {
+        float distanceToPlayer = Vector3.Distance(node.transform.position, player.position);
+        float obstaclePenalty = GetObstacleScore(node.transform.position);
+        return distanceToPlayer - obstaclePenalty; // Higher is better
+    }
+
+    private bool gameOverTriggered = false;    
+    private void CheckForWin()
+    {
+        if (boids.Count == 0) // Ensure no boids revived during delay
+        {
+            GameManager.Instance?.TriggerWin();            
+        }
+    }
     
 
     void UpdateBestPanicNode()
@@ -323,7 +437,7 @@ public class BoidManager : MonoBehaviour
                                   Vector3.Distance(b.transform.position, transform.position) <= regroupingRadius).Count;
     }
 
-    void SpawnBoids()
+    public void SpawnBoids(int boidCount)
     {
         for (int i = 0; i < boidCount; i++)
         {

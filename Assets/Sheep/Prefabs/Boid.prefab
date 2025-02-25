@@ -51,7 +51,7 @@ MeshRenderer:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 2069406717287166521}
-  m_Enabled: 1
+  m_Enabled: 0
   m_CastShadows: 1
   m_ReceiveShadows: 1
   m_DynamicOccludee: 1
@@ -105,7 +105,7 @@ BoxCollider:
   m_ProvidesContacts: 0
   m_Enabled: 1
   serializedVersion: 3
-  m_Size: {x: 1, y: 1, z: 1}
+  m_Size: {x: 1.44, y: 1, z: 1.48}
   m_Center: {x: 0, y: 0, z: 0}
 --- !u!54 &4819321469724616370
 Rigidbody:
@@ -162,7 +162,7 @@ MonoBehaviour:
   obstacleAvoidanceWeight: 5.5
   currentState: 0
   panicDuration: 15
-  health: 10
+  health: 1
   playerDetectionRange: 20
   obstacleCheckDistance: 4
   debugAvoidance: 0
@@ -170,3 +170,10 @@ MonoBehaviour:
   debugStateChanges: 0
   target: {fileID: 0}
   boidRenderer: {fileID: 0}
+  models:
+  - {fileID: 4026167085268298930, guid: 3edcf70af3303894482eb673a57b1198, type: 3}
+  - {fileID: 6885452974112614176, guid: 1f8729ffe5e3ebb45b5c6b50bc6a2cec, type: 3}
+  - {fileID: 1868461998570734802, guid: d4d6ee78313566d4fb5c9a6ce2e66e80, type: 3}
+  - {fileID: 4803590418286029818, guid: 89340c34cb7cd124883d3f31b9835bfd, type: 3}
+  - {fileID: 6517686061769116559, guid: f32fc89859f16ec49bc857008a5ed9c5, type: 3}
+  orGoat: 0.5

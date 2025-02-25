@@ -2,7 +2,7 @@ using UnityEngine;
 using UnityEngine.VFX;
 using System.Collections.Generic;
 using System.Collections;
-
+using Random=UnityEngine.Random;
 
 public enum BoidState { Roaming, Panicking, Regrouping, Dead }
 public class Boid : MonoBehaviour
@@ -46,6 +46,10 @@ public class Boid : MonoBehaviour
     public Transform target;
     private BoidManager boidManager;
     public Renderer boidRenderer;
+
+    public GameObject[] models;
+
+    public float orGoat = 0.5f;
     
     // Set needed constraints and settings just incase they are accidentally tweaked in the editor
     void Start()
@@ -54,8 +58,16 @@ public class Boid : MonoBehaviour
         rb.useGravity = true;
         rb.constraints = RigidbodyConstraints.FreezeRotationX | RigidbodyConstraints.FreezeRotationZ;
         boidManager = FindObjectOfType<BoidManager>();
-        boidRenderer = GetComponent<Renderer>(); // Get the renderer component
-        boidRenderer.material.color = Color.green; // Normal state colour
+        BecomeSheep(orGoat);
+
+        // Update boid renderer to match new model
+        boidRenderer = GetComponentInChildren<Renderer>();
+        if (boidRenderer != null)
+        {
+            boidRenderer.material.color = Color.green; // Debug color
+        }        
+
+
     }
 
     void FixedUpdate()
@@ -90,6 +102,37 @@ public class Boid : MonoBehaviour
             Quaternion targetRotation = Quaternion.LookRotation(new Vector3(velocity.x, 0, velocity.z));
             rb.rotation = Quaternion.Slerp(rb.rotation, targetRotation, rotationSpeed * Time.fixedDeltaTime);
         }
+    }
+
+
+
+    public void BecomeSheep(float orGoat)
+    {
+        if (models == null || models.Length == 0)
+        {
+            Debug.LogWarning($"Boid {name}: No models assigned in the inspector!");
+            return;
+        }
+
+        // Select a random model from the list
+        int randomIndex = Random.Range(0, models.Length);
+        GameObject selectedModel = models[randomIndex];
+
+        
+        
+
+        // Instantiate the new model as a child
+        GameObject newModel = Instantiate(selectedModel, transform);
+        
+        // Ensure proper positioning & rotation
+        newModel.transform.localPosition = Vector3.zero;        
+        newModel.transform.localRotation = Quaternion.identity;
+
+        // Spawned model needs moved down by half the cubes height
+        float cubeHeight = GetComponent<BoxCollider>()?.size.y ?? 1f; // Default to 1 if no collider
+        newModel.transform.localPosition -= new Vector3(0, cubeHeight / 2, 0);
+        
+        Debug.Log($"Boid {name} replaced model with: {selectedModel.name}");
     }
 
 
@@ -222,12 +265,7 @@ public class Boid : MonoBehaviour
 
     void Die()
     {
-        // Remove boid from the manager before proceeding
-        if (boidManager != null)
-        {
-            boidManager.RemoveBoid(this);
-        }
-
+        
         // Stop the boid from moving
         rb.velocity = Vector3.zero;
         rb.useGravity = false;
@@ -280,6 +318,12 @@ public class Boid : MonoBehaviour
             gameObject.SetActive(false);
             Destroy(smoke.gameObject, 3.8f);
             Destroy(gameObject, 3f);
+        }
+
+        // Remove boid from the manager before proceeding
+        if (boidManager != null)
+        {
+            boidManager.RemoveBoid(this);
         }
     }
 
