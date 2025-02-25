@@ -65,6 +65,26 @@ public class PlayerTest : MonoBehaviour
             {
                 BiteAttack();
             }
+            // Press Z to simulate a damage upgrade (CHEAT KEY)
+            if (Input.GetKeyDown(KeyCode.Z))
+            {
+                UpgradeDamage();
+            }
+            // Press X to simulate a speed upgrade (CHEAT KEY)
+            if (Input.GetKeyDown(KeyCode.X))
+            {
+                UpgradeSpeed();
+            }
+            // Press C to simulate a kill timer upgrade (CHEAT KEY)
+            if (Input.GetKeyDown(KeyCode.C))
+            {
+                UpgradeKillTimer();
+            }
+            // Press V to simulate a kill (CHEAT KEY)
+            if (Input.GetKeyDown(KeyCode.V))
+            {
+                TimeIncreaseOnKill();
+            }
         } else {
             // Fail condition. Restart current round?
         }
@@ -138,7 +158,7 @@ public class PlayerTest : MonoBehaviour
         remainingTime += bonusTimePerKill;
     }
 
-    public void UpgradeTimer()
+    public void UpgradeKillTimer()
     {
         bonusTimePerKill += 1;
     }
