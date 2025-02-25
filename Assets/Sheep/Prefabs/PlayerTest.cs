@@ -4,7 +4,9 @@ using System.Collections.Generic;
 
 public class PlayerTest : MonoBehaviour
 {
-    public float damage = 2f; // Damage dealt per hit
+    public float damage = 4f; // Damage dealt per hit
+    public float remainingTime = 60f;
+    public float bonusTimePerKill = 1f;
     public float impactForce = 10f; // Max force applied to boids
     public float knockbackRadius = 5f; // How far the knockback affects
     public float knockbackUpwardForce = 5f; // Vertical knock-up force
@@ -25,6 +27,8 @@ public class PlayerTest : MonoBehaviour
     {
         controller = GetComponent<CharacterController>();
 
+        remainingTime = 60f; // Reset player's timer at the start of each round
+
         // Get player and boid layer indexes
         playerLayer = gameObject.layer;
         boidLayerIndex = LayerMask.NameToLayer("Boid"); // Make sure boids are assigned to this layer
@@ -32,32 +36,50 @@ public class PlayerTest : MonoBehaviour
 
     void Update()
     {
-        float moveX = Input.GetAxis("Horizontal");
-        float moveZ = Input.GetAxis("Vertical");
-
-        Vector3 move = transform.right * moveX + transform.forward * moveZ;
-        controller.Move(move * speed * Time.deltaTime);
-
-        if (!controller.isGrounded)
+        remainingTime -= Time.deltaTime;
+        if (remainingTime > 0)
         {
-            velocity.y -= gravity * Time.deltaTime;
-            controller.Move(velocity * Time.deltaTime);
-        }
-        else
-        {
-            velocity.y = 0f;
-        }
+            float moveX = Input.GetAxis("Horizontal");
+            float moveZ = Input.GetAxis("Vertical");
 
-        // Press Space to perform a charge attack
-        if (Input.GetKeyDown(KeyCode.Space) && !isCharging)
-        {
-            StartCoroutine(ChargeAttack());
+            Vector3 move = transform.right * moveX + transform.forward * moveZ;
+            controller.Move(move * speed * Time.deltaTime);
+
+            if (!controller.isGrounded)
+            {
+                velocity.y -= gravity * Time.deltaTime;
+                controller.Move(velocity * Time.deltaTime);
+            }
+            else
+            {
+                velocity.y = 0f;
+            }
+
+            // Press Space to perform a charge attack
+            if (Input.GetKeyDown(KeyCode.Space) && !isCharging)
+            {
+                StartCoroutine(ChargeAttack());
+            }
+            // Press K to perform a bite attack
+            if (Input.GetKeyDown(KeyCode.K) && !isCharging)
+            {
+                BiteAttack();
+            }
+        } else {
+            // Fail condition. Restart current round?
         }
+    }
+
+    void BiteAttack()
+    {
+        hitBoids.Clear(); // Reset hit boids
+        Attack();
     }
 
     IEnumerator ChargeAttack()
     {
         isCharging = true;
+        damage *= 3;
         hitBoids.Clear(); // Reset hit boids
 
         // Disable collisions with boids
@@ -70,7 +92,7 @@ public class PlayerTest : MonoBehaviour
         while (elapsedTime < chargeTime)
         {
             controller.Move(transform.forward * chargeSpeed * Time.deltaTime);
-            ApplyKnockback();
+            Attack();
             elapsedTime += Time.deltaTime;
             yield return null;
         }
@@ -79,9 +101,10 @@ public class PlayerTest : MonoBehaviour
         Physics.IgnoreLayerCollision(playerLayer, boidLayerIndex, false);
 
         isCharging = false;
+        damage /= 3;
     }
 
-    void ApplyKnockback()
+    void Attack()
     {
         Collider[] hitColliders = Physics.OverlapSphere(transform.position, knockbackRadius, boidLayer);
 
@@ -108,5 +131,25 @@ public class PlayerTest : MonoBehaviour
                 }
             }
         }
+    }
+
+    public void TimeIncreaseOnKill()
+    {
+        remainingTime += bonusTimePerKill;
+    }
+
+    public void UpgradeTimer()
+    {
+        bonusTimePerKill += 1;
+    }
+
+    public void UpgradeDamage()
+    {
+        damage += 1;
+    }
+
+    public void UpgradeSpeed()
+    {
+        speed += 1;
     }
 }
