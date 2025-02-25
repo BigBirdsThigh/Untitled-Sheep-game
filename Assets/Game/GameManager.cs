@@ -32,6 +32,8 @@ public class GameManager : MonoBehaviour
 
     private void Update()
     {
+
+        //Debug.Log("GameManager Update Running");
         // When game is paused, pressing ENTER starts a new round
         if (gamePaused && Input.GetKeyDown(KeyCode.Return))
         {

@@ -23,7 +23,8 @@ public class BoidManager : MonoBehaviour
     private GameObject roamNode; // Best node for roaming
     private GameObject panicNode; // Best node for panicking
 
-    
+    private bool gameOverTriggered = false; // Game does not initialise as over
+
 
     public static BoidManager Instance { get; private set; } // Singleton Instance
 
@@ -40,6 +41,7 @@ public class BoidManager : MonoBehaviour
     void Start()
     {
         target = this.transform;
+        gameOverTriggered = false;
         CacheNodes(); // Get all nodes from the scene
         ResetRound(boidCount);
         //UpdateBestNodes();
@@ -52,10 +54,13 @@ public class BoidManager : MonoBehaviour
         int regroupingBoids = GetRegroupingCount();
         int totalBoids = boids.Count;
 
-        // Win condition
-        if(totalBoids == 0 && !gameOverTriggered){
+        Debug.Log($"Total Boids: {totalBoids}, gameOverTriggered: {gameOverTriggered}");
+
+        // Win condition - prevent triggering if game is already resetting
+        if (totalBoids == 0 && !gameOverTriggered)
+        {
             gameOverTriggered = true; // Prevent multiple triggers
-            Invoke(nameof(CheckForWin), 2.5f); // Wait 2.5s before checking
+            StartCoroutine(CheckForWinAfterDelay()); // Delay before final check
             return;
         }
 
@@ -72,47 +77,15 @@ public class BoidManager : MonoBehaviour
 
             RecalculateRoamNode(); // Update roam node
         }
-
-        if (BoidReachedNode(roamNode))
-        {
-            Debug.Log("Recalculating roam node: A boid reached the target.");
-            RecalculateRoamNode();
-        }
-
-        if (PlayerReachedNode(roamNode))
-        {
-            Debug.Log("Recalculating roam node: Player reached the target.");
-            RecalculateRoamNode();
-        }
-
-        if (BoidReachedNode(panicNode))
-        {
-            Debug.Log("Recalculating panic node: A boid reached the target.");
-            UpdateBestPanicNode();
-        }
-
-        if (PlayerReachedNode(panicNode))
-        {
-            Debug.Log("Recalculating panic node: Player reached the target.");
-            UpdateBestPanicNode();
-        }
-
-        GameObject previousPanicNode = panicNode;
-        //UpdateBestPanicNode(); // Updates `panicNode`
-
-        if (previousPanicNode != panicNode) // Panic node changed
-        {
-            Debug.Log("Panic node updated, redirecting panicking boids.");
-
-            foreach (Boid boid in boids)
-            {
-                if (boid.currentState == BoidState.Panicking)
-                {
-                    boid.ChangeTarget(panicNode.transform);
-                }
-            }
-        }
     }
+
+    private IEnumerator CheckForWinAfterDelay()
+    {
+        yield return new WaitForSeconds(2.5f);
+        Debug.Log("Checking for win after delay...");
+        CheckForWin();
+    }
+
 
     public void ResetRound(int numBoids)
     {
@@ -135,36 +108,31 @@ public class BoidManager : MonoBehaviour
         yield return new WaitForSeconds(0.5f); // Small delay for positioning
         SpawnBoids(numBoids);
     }
+        
 
-    private IEnumerator CheckForWinAfterDelay()
-    {
-        yield return new WaitForSecondsRealtime(2.5f); // Runs even when paused
-        CheckForWin();
-    }
-    
-
-    // Best First Search with duplicate-score handling
+    // Best First Search with depth limit
     GameObject FindGoodSpawn()
     {
         if (nodes.Count == 0) return null;
 
-        SortedDictionary<float, List<GameObject>> priorityQueue = new SortedDictionary<float, List<GameObject>>();
-        GameObject startNode = nodes[Random.Range(0, nodes.Count)];
+        Queue<GameObject> openSet = new Queue<GameObject>();
+        HashSet<GameObject> visited = new HashSet<GameObject>();
 
-        float startScore = EvaluateNode(startNode);
-        priorityQueue[startScore] = new List<GameObject> { startNode };
+        GameObject startNode = nodes[Random.Range(0, nodes.Count)];
+        openSet.Enqueue(startNode);
+        visited.Add(startNode);
 
         GameObject bestNode = startNode;
-        float bestScore = float.MinValue;
+        float bestScore = EvaluateNode(startNode);
 
-        while (priorityQueue.Count > 0)
+        int maxDepth = 3; // Limit search depth
+        int currentDepth = 0;
+        int nodesAtCurrentDepth = openSet.Count;
+
+        while (openSet.Count > 0 && currentDepth < maxDepth)
         {
-            float score = priorityQueue.Keys.Last(); // Get the highest score
-            List<GameObject> nodeList = priorityQueue[score];
-
-            GameObject currentNode = nodeList[0];
-            nodeList.RemoveAt(0);
-            if (nodeList.Count == 0) priorityQueue.Remove(score);
+            GameObject currentNode = openSet.Dequeue();
+            float score = EvaluateNode(currentNode);
 
             if (score > bestScore)
             {
@@ -172,21 +140,29 @@ public class BoidManager : MonoBehaviour
                 bestNode = currentNode;
             }
 
-            // Explore neighbors
+            // Expand neighbors
             foreach (GameObject neighbor in nodes)
             {
-                if (Vector3.Distance(currentNode.transform.position, neighbor.transform.position) < 5f)
+                if (!visited.Contains(neighbor) &&
+                    Vector3.Distance(currentNode.transform.position, neighbor.transform.position) < 7f) // Slightly increased threshold
                 {
-                    float neighborScore = EvaluateNode(neighbor);
-                    if (!priorityQueue.ContainsKey(neighborScore))
-                        priorityQueue[neighborScore] = new List<GameObject>();
-                    priorityQueue[neighborScore].Add(neighbor);
+                    openSet.Enqueue(neighbor);
+                    visited.Add(neighbor);
                 }
+            }
+
+            // Track depth
+            nodesAtCurrentDepth--;
+            if (nodesAtCurrentDepth == 0)
+            {
+                currentDepth++;
+                nodesAtCurrentDepth = openSet.Count;
             }
         }
 
         return bestNode;
     }
+
 
 
     // evaluate node quality for new spawn
@@ -197,14 +173,21 @@ public class BoidManager : MonoBehaviour
         return distanceToPlayer - obstaclePenalty; // Higher is better
     }
 
-    private bool gameOverTriggered = false;    
     private void CheckForWin()
     {
         if (boids.Count == 0) // Ensure no boids revived during delay
         {
-            GameManager.Instance?.TriggerWin();            
+            Debug.Log("Win condition met! Triggering win...");
+            GameManager.Instance?.TriggerWin();
+            gameOverTriggered = false; // Reset for the next round
+        }
+        else
+        {
+            Debug.Log("Win check failed: Boids exist. Resetting gameOverTriggered.");
+            gameOverTriggered = false; // Reset since new boids spawned
         }
     }
+
     
 
     void UpdateBestPanicNode()
@@ -399,7 +382,7 @@ public class BoidManager : MonoBehaviour
 {
     if (node == null)
     {
-        Debug.LogWarning("SetNodeColour: Attempted to color a null node.");
+        //Debug.LogWarning("SetNodeColour: Attempted to color a null node.");
         return;
     }
 
@@ -407,17 +390,17 @@ public class BoidManager : MonoBehaviour
 
     if (nodeRenderer == null)
     {
-        Debug.LogWarning($"SetNodeColour: Node '{node.name}' at {node.transform.position} has no MeshRenderer.");
+        //Debug.LogWarning($"SetNodeColour: Node '{node.name}' at {node.transform.position} has no MeshRenderer.");
         return;
     }
 
     if (nodeRenderer.material == null)
     {
-        Debug.LogWarning($"SetNodeColour: Node '{node.name}' at {node.transform.position} has no Material assigned.");
+        //Debug.LogWarning($"SetNodeColour: Node '{node.name}' at {node.transform.position} has no Material assigned.");
         return;
     }
 
-    Debug.Log($"SetNodeColour: Changing color of '{node.name}' at {node.transform.position} to {color}");
+    //Debug.Log($"SetNodeColour: Changing color of '{node.name}' at {node.transform.position} to {color}");
 
     // Apply color change
     nodeRenderer.material.color = color;
