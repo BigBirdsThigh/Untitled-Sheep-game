@@ -159,21 +159,50 @@ public class Boid : MonoBehaviour
 
     Vector3 Panic()
     {
-        separationWeight = 7f;
-        cohesionWeight = 0.2f;
+        float safeDistance = 10f; // Distance from player where panic starts decreasing
+        float minSeparation = 2.7f; // Lowest separation value
+        float maxSeparation = 9f; // Highest separation value
+        
+        obstacleAvoidanceWeight = 11f;
 
-        // Increase panic timer
-        panicTimer += Time.deltaTime;
+        speed = 6f;
 
-        // Ensure boid stays panicked for a minimum duration before checking to exit
-        if (panicTimer > panicDuration && Vector3.Distance(transform.position, boidManager.transform.position) > panicRadius)
+        GameObject panicNode = boidManager.GetCurrPanicNode();
+
+        if (panicNode != null)
         {
+            target = panicNode.transform;
+        }
+
+        // Distance check for reducing panic effect
+        float distanceFromPlayer = Vector3.Distance(transform.position, boidManager.player.position);
+
+        if (distanceFromPlayer > safeDistance)
+        {
+            panicTimer -= Time.deltaTime * 0.5f; // Slow cooldown when safe
+            panicTimer = Mathf.Clamp(panicTimer, 0f, panicDuration); // Prevent negative panic
+        }
+        else
+        {
+            panicTimer += Time.deltaTime; // Keep panicking if close to player
+        }
+
+        // Gradually reduce separation based on remaining panic time
+        float panicFactor = panicTimer / panicDuration; // Ranges from 0 to 1
+        separationWeight = Mathf.Lerp(minSeparation, maxSeparation, panicFactor);
+
+        // Exit panic mode when fully calmed down
+        if (panicTimer <= 0)
+        {
+            speed = 3.4f;
+            obstacleAvoidanceWeight = 5.5f;
             ChangeState(BoidState.Regrouping);
         }
 
-        return Align() * alignmentWeight + Cohere() * cohesionWeight + Separate() * separationWeight;
+        // Move toward panic node while still applying some flocking behaviors
+        Vector3 moveToPanicNode = SeekTarget() * 3f;
+        return moveToPanicNode + Align() * alignmentWeight + Cohere() * cohesionWeight + Separate() * separationWeight;
     }
-
 
 
 
@@ -299,7 +328,7 @@ public class Boid : MonoBehaviour
 
     bool PlayerIsNear()
     {
-        int rayCount = 13; // Number of rays for vision cone
+        int rayCount = 9; // Number of rays for vision cone
         float maxAngle = 90f; // Full field of view angle
         float stepAngle = maxAngle / (rayCount - 1); // Angle step per ray
         float detectionRange = playerDetectionRange;
@@ -321,8 +350,8 @@ public class Boid : MonoBehaviour
                 // Debug Raycast - Green if player detected, Yellow if blocked
                 if (debugPlayerDetection)
                 {
-                    Color rayColor = (hit.collider.CompareTag("Player")) ? Color.green : Color.yellow;
-                    Debug.DrawRay(transform.position, directionToPlayer * detectionRange, rayColor, 0.1f);
+                    Color rayColour = (hit.collider.CompareTag("Player")) ? Color.green : Color.yellow;
+                    Debug.DrawRay(transform.position, directionToPlayer * detectionRange, rayColour, 0.1f);
                 }
             }
             else
@@ -366,8 +395,24 @@ public class Boid : MonoBehaviour
         currentState = newState;
         panicTimer = 0f; // Reset panic timer when changing states
 
+
+
+        if (newState == BoidState.Panicking) // change target if we enter panic
+        {
+            GameObject panicNode = boidManager.GetCurrPanicNode();
+            if (panicNode != null)
+            {
+                target = panicNode.transform;
+                Debug.Log($"Boid {name} entering panic mode, targeting panic node at {target.position}");
+            }
+            else
+            {
+                Debug.LogWarning("Boid: No panic node found!");
+            }
+        }
+
         // ToDo: Remove this colour changer, this is just for visual testing purposes
-        // Change color based on the new state
+        // Change colour based on the new state
         if (boidRenderer != null)
         {
             switch (newState)
