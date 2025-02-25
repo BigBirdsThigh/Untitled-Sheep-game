@@ -5,11 +5,12 @@ TagManager:
   serializedVersion: 2
   tags:
   - Obstacle
+  - Boid
   layers:
   - Default
   - TransparentFX
   - Ignore Raycast
-  - 
+  - Boid
   - Water
   - UI
   - 

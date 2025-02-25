@@ -31,6 +31,8 @@ public class Boid : MonoBehaviour
     public float playerDetectionRange = 9f; // Range to detect player
     private float panicRadius = 7f; // Affects nearby boids when one dies
 
+    private bool isGrounded; // tracks if boid is grounded
+
 
     [Header("Avoidance Settings")]
     //public float groundCheckDistance = 1.5f;
