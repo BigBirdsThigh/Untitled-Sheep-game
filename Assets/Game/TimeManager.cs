@@ -23,7 +23,7 @@ public class TimeManager : MonoBehaviour
 
     void Start()
     {
-        StartTimer(30f);
+        StartTimer(500f);
     }
 
     /// Starts the timer with the given duration in seconds.
@@ -62,9 +62,10 @@ public class TimeManager : MonoBehaviour
     {
         if (additionalTime > 0)
         {
-            timeRemaining += additionalTime;
+            timeRemaining += additionalTime;            
             Debug.Log($"[TimeManager] Added {additionalTime} seconds. New time: {timeRemaining}");
         }
+        TimeManager.Instance?.AddTime(additionalTime);
     }
 
     /// Coroutine that decreases time and triggers loss when reaching zero.

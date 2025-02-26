@@ -63,7 +63,7 @@ public class Boid : MonoBehaviour
         rb.useGravity = true;
         rb.constraints = RigidbodyConstraints.FreezeRotationX | RigidbodyConstraints.FreezeRotationZ;
         boidManager = FindObjectOfType<BoidManager>();
-        r.collisionDetectionMode = CollisionDetectionMode.Discrete;
+        rb.collisionDetectionMode = CollisionDetectionMode.Discrete;
         BecomeSheep(orGoat);
 
         // Update boid renderer to match new model
@@ -76,14 +76,30 @@ public class Boid : MonoBehaviour
 
     }
 
+    void Update()
+    {
+        if (currentState == BoidState.Dead && !isDying)
+        {
+            Die();
+        }
+    }
+
+
     void FixedUpdate()
     {
+        if (currentState == BoidState.Dead) return; // Stop updates when dead
         if (Time.time < nextUpdateTime) return; // Skip if within interval
         nextUpdateTime = Time.time + Random.Range(0.02f,0.08f); // stagger updates so we don't have each boid calling at once
         Vector3 acceleration = Vector3.zero;
 
         if (currentState == BoidState.Roaming)
-            acceleration += Roam();
+            
+            // Skip some calculations on random frames to reduce load
+            if (Time.frameCount % 7 == 0)
+            {
+                acceleration += Roam();
+            }        
+
         else if (currentState == BoidState.Panicking)
             acceleration += Panic();
         else if (currentState == BoidState.Regrouping)
@@ -230,7 +246,7 @@ public class Boid : MonoBehaviour
 
         if (distanceFromPlayer > safeDistance)
         {
-            panicTimer -= Time.deltaTime * 0.5f; // Slow cooldown when safe
+            panicTimer -= Time.deltaTime * 1.2f; // Slow cooldown when safe
             panicTimer = Mathf.Clamp(panicTimer, 0f, panicDuration); // Prevent negative panic
         }
         else
@@ -259,7 +275,7 @@ public class Boid : MonoBehaviour
     Vector3 Regroup()
     {
         separationWeight = 2f;
-        cohesionWeight = 1.5f;
+        cohesionWeight = 2.5f; // Make them come back together faster
         target = boidManager.transform; // Move toward the herd center - due to how objects with child objects work, the boidmanager will always be in the centremost position of all boid positions
 
         if (PlayerIsNear())
@@ -270,8 +286,13 @@ public class Boid : MonoBehaviour
         return Align() * alignmentWeight + Cohere() * cohesionWeight + Separate() * separationWeight + SeekTarget() * targetFollowWeight;
     }
 
+
+    private bool isDying = false;
     void Die()
     {
+
+        if (isDying) return;
+        isDying = true;
         
         // Stop the boid from moving
         rb.velocity = Vector3.zero;
@@ -420,6 +441,7 @@ public class Boid : MonoBehaviour
     }
 
 
+
     // Move towards the center of nearby boids
     Vector3 Cohere()
     {
@@ -503,76 +525,44 @@ public class Boid : MonoBehaviour
 
     Vector3 AvoidObstacles()
     {
-        RaycastHit hit;
-        Vector3 bestDirection = transform.forward; // Default movement
-        bool obstacleDetected = false;
-        float maxObstacleDistance = 0f;
-        Vector3 clearPathDirection = Vector3.zero;
-        bool hasClearPath = false;
+        if (Time.frameCount % 5 != 0) return Vector3.zero; // Skip check every few frames
 
-        int rayCount = 20; // Number of rays
-        float maxAngle = 120f; // Wide detection arc for more accurate obstacle detection
-        float stepAngle = maxAngle / (rayCount - 1); // Angle step per ray
+        float checkRadius = obstacleCheckDistance;
+        Collider[] hits = Physics.OverlapSphere(transform.position, checkRadius, LayerMask.GetMask("Obstacle"));
 
-        float minDistanceToObstacle = float.MaxValue; // Track closest obstacle
-
-        for (int i = 0; i < rayCount; i++)
+        if (hits.Length == 0)
         {
-            float angle = -maxAngle / 2 + (stepAngle * i);
-            Vector3 rayDirection = Quaternion.Euler(0, angle, 0) * transform.forward;            
-
-            if (Physics.Raycast(transform.position, rayDirection, out hit, obstacleCheckDistance))
+            if (debugAvoidance)
             {
-                // Check if hit object has a tag in the avoidance list
-                if (!avoidanceTags.Contains(hit.collider.tag)) continue;
-
-                obstacleDetected = true;
-
-                // Track closest obstacle
-                if (hit.distance < minDistanceToObstacle)
-                    minDistanceToObstacle = hit.distance;
-
-                // Track the farthest detected object
-                if (hit.distance > maxObstacleDistance)
-                {
-                    maxObstacleDistance = hit.distance;
-                    bestDirection = rayDirection;
-                }
-
-                if (debugAvoidance)
-                    Debug.DrawRay(transform.position, rayDirection * hit.distance, Color.red, 0.1f);
+                Debug.DrawRay(transform.position, transform.forward * checkRadius, Color.green, 0.1f);
             }
-            else
-            {
-                // Found a clear path, prefer this over avoidance
-                hasClearPath = true;
-                clearPathDirection = rayDirection;
+            return Vector3.zero; // No obstacles detected
+        }
 
-                if (debugAvoidance)
-                    Debug.DrawRay(transform.position, rayDirection * obstacleCheckDistance, Color.green, 0.1f);
+        Vector3 avoidanceDir = Vector3.zero;
+        int count = 0;
+
+        foreach (Collider hit in hits)
+        {
+            if (!avoidanceTags.Contains(hit.tag)) continue;
+
+            Vector3 awayFromObstacle = (transform.position - hit.transform.position).normalized;
+            avoidanceDir += awayFromObstacle;
+            count++;
+
+            if (debugAvoidance)
+            {
+                Debug.DrawRay(transform.position, awayFromObstacle * checkRadius, Color.red, 0.1f);
             }
         }
 
-        if (obstacleDetected)
+        if (count > 0)
         {
-            float slowDownFactor = Mathf.Clamp01(minDistanceToObstacle / obstacleCheckDistance);
-            float newSpeed = Mathf.Lerp(speed, speed * slowDownFactor, 0.5f); // Smooth slowdown
-            speed = Mathf.Max(newSpeed, 0.5f); // Prevent stopping entirely
-
-            if (hasClearPath)
-            {
-                return clearPathDirection.normalized * 2.0f; // Prefer open space
-            }
-
-            // If no clear path, steer along the obstacle (lateral movement)
-            Vector3 lateralDirection = Vector3.Cross(Vector3.up, bestDirection).normalized; // Perpendicular movement
-            return lateralDirection * 2.5f; // Stronger lateral push
+            avoidanceDir /= count;
+            return avoidanceDir.normalized * 2.5f;
         }
 
-        // Restore speed smoothly if no obstacles detected
-        speed = Mathf.Lerp(speed, 2f, 0.5f);
-
-        return Vector3.zero; // No change, follow SeekTarget()
+        return Vector3.zero;
     }
 
 

@@ -149,7 +149,7 @@ MonoBehaviour:
   rb: {fileID: 4819321469724616370}
   speed: 3.4
   rotationSpeed: 5
-  neighborRadius: 12.69
+  neighborRadius: 8
   deathVFXPrefab: {fileID: 3589807288391457214, guid: 47fa8728959e6ac4bad426cb970a9769, type: 3}
   avoidanceRadius: 1.56
   avoidanceTags:
