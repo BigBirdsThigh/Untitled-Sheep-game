@@ -158,6 +158,16 @@ public class BoidManager : MonoBehaviour
         roundActive = false;
         CacheNodes();
 
+        // Remove existing boids before spawning new ones
+        foreach (Boid boid in boids)
+        {
+            if (boid != null)
+            {
+                Destroy(boid.gameObject);
+            }
+        }
+        boids.Clear(); // Ensure the list is empty
+
         // Find a good spawn using Best First Search
         GameObject newStartNode = FindGoodSpawn();
         if (newStartNode != null)
@@ -165,11 +175,10 @@ public class BoidManager : MonoBehaviour
             transform.position = newStartNode.transform.position;
         }
 
-
         UpdateBestNodes(); // Reset node states
-        StartCoroutine(DelayedSpawn(numBoids)); // not sure if this needed anymore but just incase, keeping for now
-             
+        StartCoroutine(DelayedSpawn(numBoids)); // Start spawning new boids
     }
+
 
     private IEnumerator DelayedSpawn(int numBoids)
     {

@@ -354,6 +354,7 @@ public class Boid : MonoBehaviour
             boidManager.RemoveBoid(this);
         }
         TimeManager.Instance?.AddTime(10f);
+        UIManager.Instance?.AddTimeEffect(10f);
     }
 
 
