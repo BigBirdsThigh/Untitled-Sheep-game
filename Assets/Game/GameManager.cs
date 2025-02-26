@@ -72,5 +72,6 @@ public class GameManager : MonoBehaviour
         gamePaused = false;
         
         BoidManager.Instance?.ResetRound(newBoidCount); // Use new method for flexibility
+        TimeManager.Instance?.StartTimer(20f);
     }
 }
