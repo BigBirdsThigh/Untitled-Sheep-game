@@ -3,12 +3,21 @@ using System.Collections;
 using System.Collections.Generic;
 
 public class PlayerTest : MonoBehaviour
-{
-    public float damage = 2f; // Damage dealt per hit
+{    
+
+    [Header("Charge Stats")]
+    public float chargeDamage = 5f; // Damage dealt per hit
     public float impactForce = 10f; // Max force applied to boids
     public float knockbackRadius = 5f; // How far the knockback affects
     public float knockbackUpwardForce = 5f; // Vertical knock-up force
-    public LayerMask boidLayer; // Set this in Unity to only detect boids
+    public LayerMask boidLayer; // Layer to detect boids
+
+    [Header("Bite Stats")]
+    public float biteRadius = 2.5f; // Radius of bite attack
+    public float biteDamage = 1f;   // Unique damage for bite attack
+    public float biteCooldown = 0.3f; // Cooldown to prevent spam
+    private bool canBite = true;
+    public Transform bitePoint; // the point where bite originates
 
     private CharacterController controller;
     private Vector3 velocity;
@@ -53,7 +62,51 @@ public class PlayerTest : MonoBehaviour
         {
             StartCoroutine(ChargeAttack());
         }
+
+        if (Input.GetMouseButtonDown(0) && canBite) // Left Click for bite
+        {
+            StartCoroutine(BiteAttack());
+        }
+
     }
+
+
+    IEnumerator BiteAttack()
+    {
+        canBite = false;
+
+        // Detect boids in bite radius
+        Collider[] hitBoids = Physics.OverlapSphere(bitePoint.position, biteRadius, boidLayer);
+
+        foreach (Collider hit in hitBoids)
+        {
+            Boid boid = hit.GetComponent<Boid>();
+            if (boid != null)
+            {
+                boid.TakeDamage(biteDamage);
+            }
+        }
+
+        Debug.Log($"Bite Attack! Hit {hitBoids.Length} boids.");
+
+        // ToDo: Play animation, and hopefully particle effect
+        // Example: animator.SetTrigger("Bite");        
+
+        yield return new WaitForSeconds(biteCooldown);
+        canBite = true;
+    }
+
+    void OnDrawGizmos()
+    {
+        // Visualize bite radius in editor
+        Gizmos.color = Color.red;
+        if (bitePoint != null)
+            Gizmos.DrawWireSphere(bitePoint.position, biteRadius);
+    }
+
+
+
+
 
     IEnumerator ChargeAttack()
     {
@@ -86,7 +139,8 @@ public class PlayerTest : MonoBehaviour
     
     public void UpgradeDamage()
     {
-        damage += 1;
+        chargeDamage += 1;
+        biteDamage += 1;
     }
 
     public void UpgradeRange() // upgrade charge attacks range
@@ -106,7 +160,7 @@ public class PlayerTest : MonoBehaviour
             if (boid != null && !hitBoids.Contains(boid))
             {
                 hitBoids.Add(boid);
-                boid.TakeDamage(damage);
+                boid.TakeDamage(chargeDamage);
 
                 Rigidbody boidRb = boid.GetComponent<Rigidbody>();
                 if (boidRb != null)

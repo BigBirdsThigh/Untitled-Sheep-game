@@ -15,6 +15,9 @@ public class UIManager : MonoBehaviour
     public GameObject winScreen;
     public Button nextRoundButton;
 
+    [Header("Round UI")]
+    public TextMeshProUGUI roundText; // Displays the round number
+
     [Header("Game Over UI")]
     public GameObject gameOverScreen;
     public Button restartButton;
@@ -53,6 +56,16 @@ public class UIManager : MonoBehaviour
             yield return new WaitForSeconds(1f); // Update every second
         }
     }
+
+
+    public void UpdateRoundUI(int round)
+    {
+        if (roundText != null)
+        {
+            roundText.text = $"Round: {round}";
+        }
+    }
+
     private Coroutine fadeCoroutine;
 
     public void AddTimeEffect(float time)
@@ -102,7 +115,7 @@ public class UIManager : MonoBehaviour
     {
         winScreen.SetActive(false);
         Time.timeScale = 1f; // Resume game
-        GameManager.Instance?.RestartRound();
+        GameManager.Instance?.StartNextRound();
     }
 
     public void RestartGame()

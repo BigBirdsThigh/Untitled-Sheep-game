@@ -10,6 +10,9 @@ public class Boid : MonoBehaviour
     public Rigidbody rb;
     private Vector3 velocity;    
 
+    [Header("TEST")]
+    public MaterialPropertyBlock materialBlock;    
+
     [Header("Boid Settings")]
     public float speed = 3.4f;
     public float rotationSpeed = 5f;
@@ -51,6 +54,7 @@ public class Boid : MonoBehaviour
     public Transform target;
     private BoidManager boidManager;
     public Renderer boidRenderer;
+    
 
     public GameObject[] models;
 
@@ -64,14 +68,7 @@ public class Boid : MonoBehaviour
         rb.constraints = RigidbodyConstraints.FreezeRotationX | RigidbodyConstraints.FreezeRotationZ;
         boidManager = FindObjectOfType<BoidManager>();
         rb.collisionDetectionMode = CollisionDetectionMode.Discrete;
-        BecomeSheep(orGoat);
-
-        // Update boid renderer to match new model
-        boidRenderer = GetComponentInChildren<Renderer>();
-        if (boidRenderer != null)
-        {
-            boidRenderer.material.color = Color.green; // Debug color
-        }        
+        BecomeSheep(orGoat);             
 
 
     }
@@ -128,8 +125,7 @@ public class Boid : MonoBehaviour
         }
     }
 
-
-
+    // Pick one of the boid models at random
     public void BecomeSheep(float orGoat)
     {
         if (models == null || models.Length == 0)
@@ -142,23 +138,32 @@ public class Boid : MonoBehaviour
         int randomIndex = Random.Range(0, models.Length);
         GameObject selectedModel = models[randomIndex];
 
-        
-        
-
         // Instantiate the new model as a child
         GameObject newModel = Instantiate(selectedModel, transform);
-        
+
         // Ensure proper positioning & rotation
-        newModel.transform.localPosition = Vector3.zero;        
+        newModel.transform.localPosition = Vector3.zero;
         newModel.transform.localRotation = Quaternion.identity;
 
-        // Spawned model needs moved down by half the cubes height
+        // Scale the model to be bigger
+        newModel.transform.localScale = Vector3.one * 2f;
+
+        // Spawned model needs moved down by half the cube's height
         float cubeHeight = GetComponent<BoxCollider>()?.size.y ?? 1f; // Default to 1 if no collider
         newModel.transform.localPosition -= new Vector3(0, cubeHeight / 2, 0);
-        
-        //Debug.Log($"Boid {name} replaced model with: {selectedModel.name}");
-    }
 
+        // Get the MeshRenderer of the new model
+        boidRenderer = newModel.GetComponent<MeshRenderer>();
+
+        if (boidRenderer != null)
+        {
+            // Ensure boid has a material instance
+            boidRenderer.material = new Material(boidRenderer.material);
+
+            // Set default RedBoost to 0 (ensures no red tint)
+            boidRenderer.material.SetFloat("_RedBoost", 0f);
+        }
+    }
 
     // Seek towards target position
     Vector3 SeekTarget()
@@ -189,6 +194,7 @@ public class Boid : MonoBehaviour
     public void TakeDamage(float damage)
     {
         health -= damage;
+        Debug.Log("Took Damage");
 
         if (health <= 0)
         {
@@ -198,9 +204,38 @@ public class Boid : MonoBehaviour
         {
             ChangeState(BoidState.Panicking);
             AlertNearbyBoids();
+            StartCoroutine(FlashRedEffect());
         }
     }
 
+    private IEnumerator FlashRedEffect()
+    {
+        if (boidRenderer == null) yield break;
+
+        Debug.Log("Flashing Red");
+
+        Material mat = boidRenderer.material;
+        
+        // Increase red boost
+        mat.SetFloat("_RedBoost", 1.1f);
+
+        yield return new WaitForSeconds(0.3f); // Flash red for 0.3s
+
+        // Smoothly fade back to normal
+        float duration = 0.5f;
+        float elapsedTime = 0f;
+
+        while (elapsedTime < duration)
+        {
+            float newRedBoost = Mathf.Lerp(1.5f, 0f, elapsedTime / duration);
+            mat.SetFloat("_RedBoost", newRedBoost);
+
+            elapsedTime += Time.deltaTime;
+            yield return null;
+        }
+
+        mat.SetFloat("_RedBoost", 0f); // Ensure reset
+    }
 
     public void ChangeTarget(Transform new_target){
         target = new_target;

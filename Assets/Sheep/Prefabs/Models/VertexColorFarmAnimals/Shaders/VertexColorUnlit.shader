@@ -1,8 +1,7 @@
-﻿// Upgrade NOTE: upgraded instancing buffer 'UnityPerMaterial' to new syntax.
-
-Shader "VertexColorFarmAnimals/VertexColorUnlit" {
+﻿Shader "VertexColorFarmAnimals/VertexColorUnlit" {
     Properties {
         _MainTex ("Texture", 2D) = "white" {}
+        _RedBoost ("Red Boost", Range(0, 1)) = 0 // Controls how much red is added
     }
 
     SubShader {
@@ -29,12 +28,12 @@ Shader "VertexColorFarmAnimals/VertexColorUnlit" {
             };
 
             UNITY_INSTANCING_BUFFER_START(UnityPerMaterial)
-                // You can declare per-instance properties here if needed
+                UNITY_DEFINE_INSTANCED_PROP(float, _RedBoost) // Instanced property for red effect
             UNITY_INSTANCING_BUFFER_END(UnityPerMaterial)
 
             v2f vert (appdata_t v) {
                 v2f o;
-                UNITY_SETUP_INSTANCE_ID(v); // Required for instancing
+                UNITY_SETUP_INSTANCE_ID(v); 
                 UNITY_INITIALIZE_VERTEX_OUTPUT_STEREO(o);
 
                 o.pos = UnityObjectToClipPos(v.vertex);
@@ -43,7 +42,16 @@ Shader "VertexColorFarmAnimals/VertexColorUnlit" {
             }
 
             fixed4 frag (v2f i) : SV_Target {
-                return i.color; // Use vertex color
+                float redBoost = UNITY_ACCESS_INSTANCED_PROP(UnityPerMaterial, _RedBoost);
+
+                // Original vertex color
+                fixed4 originalColor = i.color;
+
+                // Boost red by blending towards red (1,0,0)
+                fixed4 redTint = fixed4(1, 0, 0, 1);
+                i.color = lerp(originalColor, redTint, redBoost); // Interpolate towards red
+
+                return i.color;
             }
 
             ENDCG

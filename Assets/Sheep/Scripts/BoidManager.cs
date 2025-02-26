@@ -46,7 +46,11 @@ public class BoidManager : MonoBehaviour
         CacheNodes(); // Get all nodes from the scene
         roundActive = true; // round has started
         UpdateBestNodes();
-        SpawnBoids(boidCount);        
+        // SpawnBoids(boidCount); No longer starting the 1st round from the boidmanager   
+    }
+
+    public void SetPlayer(GameObject p){
+        player = p.transform;
     }
 
     void FixedUpdate()
@@ -59,11 +63,12 @@ public class BoidManager : MonoBehaviour
         //Debug.Log($"Total Boids: {totalBoids}, Round Active?: {roundActive}");
 
         // Win condition - prevent triggering if game is already resetting
-        if (totalBoids == 0 && roundActive)
-        {
-            roundActive = false;
-            StartCoroutine(Win());
-        }
+        // ** GAME MANAGER SHOULD HANDLE WIN/LOSE CONDITIONS **
+        // if (totalBoids == 0 && roundActive)
+        // {
+        //     roundActive = false;
+        //     StartCoroutine(Win());
+        // }
 
         if (regroupingBoids >= totalBoids * 0.7f)
         {
@@ -504,24 +509,24 @@ public class BoidManager : MonoBehaviour
     {
         if (node == null)
         {
-            Debug.LogWarning("SetNodeColour: Attempted to color a null node.");
+            //Debug.LogWarning("SetNodeColour: Attempted to color a null node.");
             return;
         }
 
         Renderer nodeRenderer = node.GetComponent<MeshRenderer>();
         if (nodeRenderer == null)
         {
-            Debug.LogWarning($"SetNodeColour: Node '{node.name}' at {node.transform.position} has no MeshRenderer.");
+            // Debug.LogWarning($"SetNodeColour: Node '{node.name}' at {node.transform.position} has no MeshRenderer.");
             return;
         }
 
         if (nodeRenderer.material == null)
         {
-            Debug.LogWarning($"SetNodeColour: Node '{node.name}' at {node.transform.position} has no Material assigned.");
+            // Debug.LogWarning($"SetNodeColour: Node '{node.name}' at {node.transform.position} has no Material assigned.");
             return;
         }
 
-        Debug.Log($"SetNodeColour: Changing color of '{node.name}' to {color}");
+        // Debug.Log($"SetNodeColour: Changing color of '{node.name}' to {color}");
         nodeRenderer.material.color = color;
     }
 
@@ -573,10 +578,8 @@ public class BoidManager : MonoBehaviour
     public void RemoveBoid(Boid boid)
     {
         boids.Remove(boid);
-        if (roundActive && boids.Count == 0){ // ensure win check if this is last boid 
-            roundActive = false;
-            StartCoroutine(Win());
-        }
+        // ask game manager if we win
+        GameManager.Instance?.CheckWin();
     }
 
     public bool AnyBoidsPanicking()

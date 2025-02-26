@@ -6,6 +6,7 @@ public class TimeManager : MonoBehaviour
     public static TimeManager Instance { get; private set; }
 
     public float timeRemaining;
+    public float startTime = 180f;
     private bool timerRunning = false;
     private Coroutine timerCoroutine; // Store the running coroutine
 
@@ -23,7 +24,7 @@ public class TimeManager : MonoBehaviour
 
     void Start()
     {
-        StartTimer(2f);
+        StartTimer(2000f);
     }
 
     /// Starts the timer with the given duration in seconds.
@@ -75,25 +76,25 @@ public class TimeManager : MonoBehaviour
             yield return new WaitForSeconds(1f);
             timeRemaining--;
 
-            if (timeRemaining <= 0)
-            {
-                TimerExpired();
-            }
+            // if (timeRemaining <= 0)
+            // {
+            //     TimerExpired();
+            // }
         }
 
         timerCoroutine = null; // Reset coroutine reference when finished
     }
 
     /// Handles what happens when the timer runs out.
-    private void TimerExpired()
-    {
-        Debug.Log("[TimeManager] Timer expired!");
+    // private void TimerExpired()
+    // {
+    //     Debug.Log("[TimeManager] Timer expired!");
 
-        if (GameManager.Instance != null && !GameManager.Instance.IsGamePaused())
-        {
-            GameManager.Instance.TriggerLose();
-        }
-    }
+    //     if (GameManager.Instance != null && !GameManager.Instance.IsGamePaused())
+    //     {
+    //         GameManager.Instance.TriggerLose();
+    //     }
+    // }
 
     /// Returns the remaining time.
     public float GetRemainingTime()

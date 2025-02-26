@@ -1,8 +1,23 @@
 using UnityEngine;
+using Cinemachine;
+
 
 public class GameManager : MonoBehaviour
 {
     public static GameManager Instance { get; private set; }
+
+    [Header("Player Management")]
+    public GameObject playerPrefab;
+    public Transform spawnPoint;
+    private GameObject currPlayer;
+
+    [Header("Round System")]
+    public int currRound = 1; // start at round 1
+    public int startingBoids = 5; // initial boids num
+    public float startingTime = 180f; // first timer
+    private bool roundActive = false; // Ensure rounds don’t check win too early
+
+
     private bool gamePaused = false;
 
     private void Awake()
@@ -17,6 +32,82 @@ public class GameManager : MonoBehaviour
         }
     }
 
+
+    // private void Start(){
+    //     SpawnPlayer();
+    //     UIManager.Instance?.UpdateRoundUI(currRound);
+    // }
+
+    private void Start()
+    {
+        StartFirstRound();
+    }
+
+    private void StartFirstRound()
+    {
+        SpawnPlayer();
+        roundActive = true;
+        UIManager.Instance?.UpdateRoundUI(currRound);
+
+        BoidManager.Instance?.ResetRound(startingBoids);
+        TimeManager.Instance?.StartTimer(startingTime);
+    }
+
+
+    public void CheckWinCondition()
+    {
+        if (!roundActive) return; // Avoid early checks before a round starts
+
+        int remainingBoids = BoidManager.Instance?.boids.Count ?? 0;
+
+        if (remainingBoids == 0)
+        {
+            Debug.Log("All boids eliminated. WIN!");
+            roundActive = false;
+            TriggerWin();
+        }
+    }
+
+
+    public void CheckLoseCondition()
+    {
+        if (!roundActive) return; // Only check when the round is active
+
+        float remainingTime = TimeManager.Instance?.GetRemainingTime() ?? 0f;
+        if (remainingTime <= 0)
+        {
+            Debug.Log("Time ran out. LOSE!");
+            roundActive = false;
+            TriggerLose();
+        }
+    }
+
+
+
+    public void SpawnPlayer(){
+        if (playerPrefab == null){
+            Debug.LogError("Player prefab or spawnpoint not assigned");
+        }
+
+        if (currPlayer != null){ // ensure only 1 player exists
+            Destroy(currPlayer); 
+        }
+
+        currPlayer = Instantiate(playerPrefab, spawnPoint.position, spawnPoint.rotation);
+
+        CinemachineVirtualCamera playerCam = currPlayer.GetComponentInChildren<CinemachineVirtualCamera>();
+
+        if (playerCam != null){
+            playerCam.Priority = 30;
+        }
+        else{
+            Debug.LogError("NO CAMERA FOUND");
+        }
+
+        BoidManager.Instance?.SetPlayer(currPlayer);
+    }
+
+
     /*
     This should:
     - Pause the game
@@ -25,9 +116,15 @@ public class GameManager : MonoBehaviour
     */
     public void TriggerWin()
     {
+
+        if(gamePaused) return;
+
         Debug.Log("WIN! Displaying upgrade screen.");
         TimeManager.Instance?.StopTimer();
         UIManager.Instance?.ShowWinScreen();
+        currRound++;
+        UIManager.Instance?.UpdateRoundUI(currRound);
+        gamePaused = true;
     }
 
 
@@ -52,26 +149,41 @@ public class GameManager : MonoBehaviour
 
     private void Update()
     {
+        if (roundActive)
+        {
+            CheckLoseCondition(); // Time-based loss check
+        }
+    }
 
-        //Debug.Log("GameManager Update Running");
-        // When game is paused, pressing ENTER starts a new round
-        // if (gamePaused && Input.GetKeyDown(KeyCode.Return))
-        // {
-        //     float remainingTime = TimeManager.Instance?.GetRemainingTime() ?? 0f;
-        //     TimeManager.Instance?.StartTimer(remainingTime);
-        //     RestartRound();
-        // }
+
+    public void StartNextRound(){
+        
+        Time.timeScale = 1f; // start game
+        gamePaused = false;
+        roundActive = true;
+
+        int newBoidCount = Random.Range(5 + (currRound * 2), 25 + (currRound * 3)); // Increase boids per round
+        BoidManager.Instance?.ResetRound(newBoidCount);
+        float currTime = TimeManager.Instance?.GetRemainingTime() ?? startingTime; // default to starting time if the time somehow is not available
+        TimeManager.Instance?.StartTimer(currTime);
     }
 
     public void RestartRound()
     {
-        int newBoidCount = Random.Range(5, 21); // Random between 5 and 20 boids
-
-        Debug.Log($"New Round Started with {newBoidCount} Boids!");
         Time.timeScale = 1f; // Resume the game
         gamePaused = false;
+        roundActive = true;
+        int newBoidCount = startingBoids; // start with initial boid count
         
-        BoidManager.Instance?.ResetRound(newBoidCount); // Use new method for flexibility
-        TimeManager.Instance?.StartTimer(20f);
+        currRound = 1;
+
+        UIManager.Instance?.UpdateRoundUI(currRound);
+
+        // Respawn the player
+        SpawnPlayer();
+        
+        
+        BoidManager.Instance?.ResetRound(newBoidCount);
+        TimeManager.Instance?.StartTimer(startingTime);
     }
 }

@@ -162,7 +162,7 @@ MonoBehaviour:
   obstacleAvoidanceWeight: 5.5
   currentState: 0
   panicDuration: 15
-  health: 1
+  health: 10
   playerDetectionRange: 20
   obstacleCheckDistance: 4
   debugAvoidance: 0
