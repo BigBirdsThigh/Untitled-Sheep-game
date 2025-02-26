@@ -26,9 +26,31 @@ public class GameManager : MonoBehaviour
     public void TriggerWin()
     {
         Debug.Log("WIN! Game Paused. Press ENTER to start a new round.");
+        TimeManager.Instance?.StopTimer();
         Time.timeScale = 0f; // Pause the game
         gamePaused = true;
     }
+
+
+    public void TriggerLose()
+    {
+        if (gamePaused)
+        {
+            Debug.Log("[GameManager] Game is paused, loss cannot be triggered.");
+            return;
+        }
+
+        Debug.Log("LOSE! Game Over.");
+        Time.timeScale = 0f; // Pause the game
+        gamePaused = true;
+    }
+
+    public bool IsGamePaused()
+    {
+        return gamePaused;
+    }
+
+
 
     private void Update()
     {
@@ -37,6 +59,8 @@ public class GameManager : MonoBehaviour
         // When game is paused, pressing ENTER starts a new round
         if (gamePaused && Input.GetKeyDown(KeyCode.Return))
         {
+            float remainingTime = TimeManager.Instance?.GetRemainingTime() ?? 0f;
+            TimeManager.Instance?.StartTimer(remainingTime);
             RestartRound();
         }
     }

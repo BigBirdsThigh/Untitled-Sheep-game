@@ -34,6 +34,11 @@ public class Boid : MonoBehaviour
     private bool isGrounded; // tracks if boid is grounded
 
 
+    // Interval to limit physics calls for each boid for performance
+    private float nextUpdateTime = 0f;
+    private float updateInterval = 0.02f;
+
+
     [Header("Avoidance Settings")]
     //public float groundCheckDistance = 1.5f;
     public float obstacleCheckDistance = 4f;
@@ -58,6 +63,7 @@ public class Boid : MonoBehaviour
         rb.useGravity = true;
         rb.constraints = RigidbodyConstraints.FreezeRotationX | RigidbodyConstraints.FreezeRotationZ;
         boidManager = FindObjectOfType<BoidManager>();
+        r.collisionDetectionMode = CollisionDetectionMode.Discrete;
         BecomeSheep(orGoat);
 
         // Update boid renderer to match new model
@@ -72,6 +78,8 @@ public class Boid : MonoBehaviour
 
     void FixedUpdate()
     {
+        if (Time.time < nextUpdateTime) return; // Skip if within interval
+        nextUpdateTime = Time.time + Random.Range(0.02f,0.08f); // stagger updates so we don't have each boid calling at once
         Vector3 acceleration = Vector3.zero;
 
         if (currentState == BoidState.Roaming)
@@ -132,7 +140,7 @@ public class Boid : MonoBehaviour
         float cubeHeight = GetComponent<BoxCollider>()?.size.y ?? 1f; // Default to 1 if no collider
         newModel.transform.localPosition -= new Vector3(0, cubeHeight / 2, 0);
         
-        Debug.Log($"Boid {name} replaced model with: {selectedModel.name}");
+        //Debug.Log($"Boid {name} replaced model with: {selectedModel.name}");
     }
 
 
@@ -210,7 +218,7 @@ public class Boid : MonoBehaviour
 
         speed = 6f;
 
-        GameObject panicNode = boidManager.GetCurrPanicNode();
+         GameObject panicNode = boidManager.GetCurrPanicNode();
 
         if (panicNode != null)
         {
@@ -240,8 +248,7 @@ public class Boid : MonoBehaviour
             speed = 3.4f;
             obstacleAvoidanceWeight = 5.5f;
             ChangeState(BoidState.Regrouping);
-        }
-
+        }     
         // Move toward panic node while still applying some flocking behaviors
         Vector3 moveToPanicNode = SeekTarget() * 3f;
         return moveToPanicNode + Align() * alignmentWeight + Cohere() * cohesionWeight + Separate() * separationWeight;
@@ -272,7 +279,7 @@ public class Boid : MonoBehaviour
         rb.constraints = RigidbodyConstraints.FreezeAll;
 
         // Ensure it's not referenced further
-        currentState = BoidState.Dead;
+        currentState = BoidState.Dead;        
 
         // Start the death animation
         StartCoroutine(DeathAnimation());
@@ -325,6 +332,7 @@ public class Boid : MonoBehaviour
         {
             boidManager.RemoveBoid(this);
         }
+        TimeManager.Instance?.AddTime(10f);
     }
 
 
@@ -434,48 +442,41 @@ public class Boid : MonoBehaviour
 
     public void ChangeState(BoidState newState)
     {
-        if (currentState == newState) return; // Prevent redundant state changes
+        if (currentState == newState) return;
 
         currentState = newState;
-        panicTimer = 0f; // Reset panic timer when changing states
+        panicTimer = 0f;
 
-
-
-        if (newState == BoidState.Panicking) // change target if we enter panic
+        if (newState == BoidState.Panicking)
         {
             GameObject panicNode = boidManager.GetCurrPanicNode();
             if (panicNode != null)
             {
-                target = panicNode.transform;
-                Debug.Log($"Boid {name} entering panic mode, targeting panic node at {target.position}");
-            }
-            else
-            {
-                Debug.LogWarning("Boid: No panic node found!");
+                ChangeTarget(panicNode.transform);
             }
         }
-
-        // ToDo: Remove this colour changer, this is just for visual testing purposes
-        // Change colour based on the new state
+        
+        // Debugging visual changes
         if (boidRenderer != null)
         {
             switch (newState)
             {
                 case BoidState.Roaming:
-                    boidRenderer.material.color = Color.green; // Normal state
+                    boidRenderer.material.color = Color.green;
                     break;
                 case BoidState.Panicking:
-                    boidRenderer.material.color = Color.red; // Panic mode
+                    boidRenderer.material.color = Color.red;
                     break;
                 case BoidState.Regrouping:
-                    boidRenderer.material.color = Color.blue; // Regrouping state
+                    boidRenderer.material.color = Color.blue;
                     break;
                 case BoidState.Dead:
-                    boidRenderer.material.color = Color.black; // Dead state
+                    boidRenderer.material.color = Color.black;
                     break;
             }
         }
     }
+
 
 
 

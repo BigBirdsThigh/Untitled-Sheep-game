@@ -171,9 +171,9 @@ MonoBehaviour:
   target: {fileID: 0}
   boidRenderer: {fileID: 0}
   models:
-  - {fileID: 4026167085268298930, guid: 3edcf70af3303894482eb673a57b1198, type: 3}
-  - {fileID: 6885452974112614176, guid: 1f8729ffe5e3ebb45b5c6b50bc6a2cec, type: 3}
-  - {fileID: 1868461998570734802, guid: d4d6ee78313566d4fb5c9a6ce2e66e80, type: 3}
-  - {fileID: 4803590418286029818, guid: 89340c34cb7cd124883d3f31b9835bfd, type: 3}
-  - {fileID: 6517686061769116559, guid: f32fc89859f16ec49bc857008a5ed9c5, type: 3}
+  - {fileID: 8046052302812411794, guid: 5d2311dabf3b3b24595d5f090b8dca84, type: 3}
+  - {fileID: 7821497985114978910, guid: 8e4c075787763c046b46c0b4f36d3637, type: 3}
+  - {fileID: 5428843596577460479, guid: f78e190ef0e9ae44d81232ecf815da51, type: 3}
+  - {fileID: 4718794685466624280, guid: f164199e686fb754985211a78c15302c, type: 3}
+  - {fileID: 1716039725925809779, guid: c45059bf60818b3458389c9d2523ae4e, type: 3}
   orGoat: 0.5

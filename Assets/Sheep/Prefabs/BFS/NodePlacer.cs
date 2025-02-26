@@ -21,14 +21,21 @@ public class NodePlacer : MonoBehaviour
     public bool renderNodes = true; // Toggle to show/hide nodes
     private Transform nodesParent; // Parent container for nodes
 
+
+    private void Awake()
+    {
+        GenerateNodes(); // Ensures nodes exist before any other script runs
+    }
+
+
     private void Start()
     {
-        GenerateNodes();
+     //   GenerateNodes();
     }
 
     private void OnEnable()
     {
-        SetNodeRendering(true); // Ensure nodes are visible when NodePlacer is enabled
+        SetNodeRendering(false); // Ensure nodes are visible when NodePlacer is enabled
     }
 
     private void OnDisable()

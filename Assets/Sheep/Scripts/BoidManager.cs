@@ -16,14 +16,17 @@ public class BoidManager : MonoBehaviour
     [Header("Debugging")]
     public bool DebugPlayerDetection = false;
     public bool DebugObstacleAvoidance = false;
+    private float nextReevaluationTime = 0f;
+    private float reevaluationCooldown = 120f; // re-eval every 2 mins
 
     [HideInInspector]
     public List<Boid> boids = new List<Boid>();
     private List<GameObject> nodes = new List<GameObject>(); // Store all nodes as graph
-    private GameObject roamNode; // Best node for roaming
-    private GameObject panicNode; // Best node for panicking
+    public GameObject roamNode; // Best node for roaming
+    public GameObject panicNode; // Best node for panicking
 
     private bool gameOverTriggered = false; // Game does not initialise as over
+    private bool roundActive = false; // so we only do a win or lose check after the round has started
 
 
     public static BoidManager Instance { get; private set; } // Singleton Instance
@@ -39,12 +42,11 @@ public class BoidManager : MonoBehaviour
     }
 
     void Start()
-    {
-        target = this.transform;
-        gameOverTriggered = false;
+    {             
         CacheNodes(); // Get all nodes from the scene
-        ResetRound(boidCount);
-        //UpdateBestNodes();
+        roundActive = true; // round has started
+        UpdateBestNodes();
+        SpawnBoids(boidCount);        
     }
 
     void FixedUpdate()
@@ -54,14 +56,13 @@ public class BoidManager : MonoBehaviour
         int regroupingBoids = GetRegroupingCount();
         int totalBoids = boids.Count;
 
-        Debug.Log($"Total Boids: {totalBoids}, gameOverTriggered: {gameOverTriggered}");
+        //Debug.Log($"Total Boids: {totalBoids}, Round Active?: {roundActive}");
 
         // Win condition - prevent triggering if game is already resetting
-        if (totalBoids == 0 && !gameOverTriggered)
+        if (totalBoids == 0 && roundActive)
         {
-            gameOverTriggered = true; // Prevent multiple triggers
-            StartCoroutine(CheckForWinAfterDelay()); // Delay before final check
-            return;
+            roundActive = false;
+            StartCoroutine(Win());
         }
 
         if (regroupingBoids >= totalBoids * 0.7f)
@@ -74,22 +75,88 @@ public class BoidManager : MonoBehaviour
                     boid.ChangeTarget(roamNode.transform);
                 }
             }
-
-            RecalculateRoamNode(); // Update roam node
         }
+                
+        // **Trigger limited re-evaluations based on time**
+        if (Time.time >= nextReevaluationTime)
+        {
+            nextReevaluationTime = Time.time + reevaluationCooldown;
+            Debug.Log("Periodic node reevaluation...");
+            UpdateBestNodes();
+
+            // **Reassign targets for all Boids**
+            foreach (Boid boid in boids)
+            {
+                if (boid == null) continue;
+
+                // Update roamers
+                if (boid.currentState == BoidState.Roaming && roamNode != null)
+                {
+                    boid.ChangeTarget(roamNode.transform);
+                }
+
+                // Update panicking boids
+                if (boid.currentState == BoidState.Panicking && panicNode != null)
+                {
+                    boid.ChangeTarget(panicNode.transform);
+                }
+            }
+        }
+
+
+        if (BoidReachedNode(roamNode))
+        {
+            Debug.Log("Recalculating roam node: A boid reached the target.");
+            RecalculateRoamNode();
+        }
+
+        if (PlayerReachedNode(roamNode))
+        {
+            Debug.Log("Recalculating roam node: Player reached the target.");
+            RecalculateRoamNode();
+        }
+
+        if (BoidReachedNode(panicNode))
+        {
+            Debug.Log("Recalculating panic node: A boid reached the target.");
+            UpdateBestPanicNode();
+        }
+
+        if (PlayerReachedNode(panicNode))
+        {
+            Debug.Log("Recalculating panic node: Player reached the target.");
+            UpdateBestPanicNode();
+        }
+
+        GameObject previousPanicNode = panicNode;
+        //UpdateBestPanicNode(); // Updates `panicNode`
+
+        if (previousPanicNode != panicNode) // Panic node changed
+        {
+            Debug.Log("Panic node updated, redirecting panicking boids.");
+            foreach (Boid boid in boids)
+            {
+                if (boid.currentState == BoidState.Panicking)
+                {
+                    boid.ChangeTarget(panicNode.transform);
+                }
+            }
+        }
+
     }
 
-    private IEnumerator CheckForWinAfterDelay()
+    private IEnumerator Win()
     {
         yield return new WaitForSeconds(2.5f);
         Debug.Log("Checking for win after delay...");
-        CheckForWin();
+        GameManager.Instance?.TriggerWin();
     }
 
 
     public void ResetRound(int numBoids)
     {
-        gameOverTriggered = false;
+        roundActive = false;
+        CacheNodes();
 
         // Find a good spawn using Best First Search
         GameObject newStartNode = FindGoodSpawn();
@@ -98,15 +165,18 @@ public class BoidManager : MonoBehaviour
             transform.position = newStartNode.transform.position;
         }
 
-        StartCoroutine(DelayedSpawn(numBoids)); // Short delay before spawning
 
         UpdateBestNodes(); // Reset node states
+        StartCoroutine(DelayedSpawn(numBoids)); // not sure if this needed anymore but just incase, keeping for now
+             
     }
 
     private IEnumerator DelayedSpawn(int numBoids)
     {
         yield return new WaitForSeconds(0.5f); // Small delay for positioning
         SpawnBoids(numBoids);
+        UpdateBestNodes();
+        roundActive = true;
     }
         
 
@@ -140,18 +210,16 @@ public class BoidManager : MonoBehaviour
                 bestNode = currentNode;
             }
 
-            // Expand neighbors
             foreach (GameObject neighbor in nodes)
             {
                 if (!visited.Contains(neighbor) &&
-                    Vector3.Distance(currentNode.transform.position, neighbor.transform.position) < 7f) // Slightly increased threshold
+                    Vector3.Distance(currentNode.transform.position, neighbor.transform.position) < 7f)
                 {
                     openSet.Enqueue(neighbor);
                     visited.Add(neighbor);
                 }
             }
 
-            // Track depth
             nodesAtCurrentDepth--;
             if (nodesAtCurrentDepth == 0)
             {
@@ -160,8 +228,12 @@ public class BoidManager : MonoBehaviour
             }
         }
 
+        roamNode = bestNode;  // Make sure we assign a roamNode
+        panicNode = GetBestPanicNode(); // Assign a panicNode immediately
+
         return bestNode;
     }
+
 
 
 
@@ -172,22 +244,6 @@ public class BoidManager : MonoBehaviour
         float obstaclePenalty = GetObstacleScore(node.transform.position);
         return distanceToPlayer - obstaclePenalty; // Higher is better
     }
-
-    private void CheckForWin()
-    {
-        if (boids.Count == 0) // Ensure no boids revived during delay
-        {
-            Debug.Log("Win condition met! Triggering win...");
-            GameManager.Instance?.TriggerWin();
-            gameOverTriggered = false; // Reset for the next round
-        }
-        else
-        {
-            Debug.Log("Win check failed: Boids exist. Resetting gameOverTriggered.");
-            gameOverTriggered = false; // Reset since new boids spawned
-        }
-    }
-
     
 
     void UpdateBestPanicNode()
@@ -206,22 +262,40 @@ public class BoidManager : MonoBehaviour
         if (panicNode != null)
         {
             SetNodeColour(panicNode, Color.red);
+            Debug.Log($"[BoidManager] Panic Node set to: {panicNode.name} at {panicNode.transform.position}");
+        }
+        else
+        {
+            Debug.LogError("[BoidManager] Panic node is NULL!");
         }
     }
+
 
 
     void CacheNodes()
     {
         GameObject nodesParent = GameObject.Find("Nodes");
-        if (nodesParent != null)
+        
+        if (nodesParent == null)
         {
-            nodes = new List<GameObject>();
-            foreach (Transform child in nodesParent.transform)
+            Debug.LogError("[BoidManager] No 'Nodes' GameObject found in the scene!");
+            return;
+        }
+
+        nodes = new List<GameObject>();
+
+        foreach (Transform child in nodesParent.transform)
+        {
+            if (child.gameObject != null)
             {
                 nodes.Add(child.gameObject);
+                Debug.Log($"[BoidManager] Node added: {child.gameObject.name}");
             }
         }
+
+        Debug.Log($"[BoidManager] Total nodes cached: {nodes.Count}");
     }
+
 
     void UpdateBestNodes()
     {
@@ -275,7 +349,7 @@ public class BoidManager : MonoBehaviour
     {
         if (node == null || player == null) return false;
         
-        return Vector3.Distance(player.position, node.transform.position) < 1f; // 1m threshold
+        return Vector3.Distance(player.position, node.transform.position) < 3f; // 1m threshold
     }
 
 
@@ -311,27 +385,66 @@ public class BoidManager : MonoBehaviour
 
     GameObject GetBestRoamNode()
     {
-        // Placeholder: Select a random node for now
-        return nodes.OrderBy(n => Random.value).FirstOrDefault();
+        if (nodes.Count == 0)
+        {
+            Debug.LogError("[Roam Node] No available nodes! Check CacheNodes().");
+            return null;
+        }
+
+        GameObject selectedNode = nodes.OrderBy(n => Random.value).FirstOrDefault();
+
+        if (selectedNode != null)
+        {
+            Debug.Log($"[Roam Node] Selected: {selectedNode.name} at {selectedNode.transform.position}");
+        }
+        else
+        {
+            Debug.LogError("[Roam Node] No valid node was selected! Assigning fallback node.");
+            selectedNode = nodes[0]; // Ensure a node is assigned
+        }
+
+        return selectedNode;
     }
+
+
+
 
     public GameObject GetCurrPanicNode(){
         return panicNode;
     }
 
+
     GameObject GetBestPanicNode()
     {
-        if (player == null) return null;
-
-        return nodes.OrderByDescending(n =>
+        if (player == null || nodes.Count == 0)
         {
-            float distance = Vector3.Distance(n.transform.position, player.position); // reward distance from player
-            float obstaclePenalty = GetObstacleScore(n.transform.position); // penalise for having lots of obstacles inbetween point and boids (harder to navigate)
-            float losBonus = GetLOSScore(n.transform.position); // Bonus if hidden from player
+            Debug.LogWarning("[Panic Node] No player or nodes exist!");
+            return nodes.Count > 0 ? nodes[0] : null;
+        }
 
-            return distance - obstaclePenalty + losBonus; // Higher value = better panic node
+        GameObject bestNode = nodes.OrderByDescending(n =>
+        {
+            float distance = Vector3.Distance(n.transform.position, player.position);
+            float obstaclePenalty = GetObstacleScore(n.transform.position);
+            float losBonus = GetLOSScore(n.transform.position);
+
+            float score = distance - obstaclePenalty + losBonus;
+            Debug.Log($"[Panic Node] Checking {n.name} | Distance: {distance}, Obstacles: {obstaclePenalty}, LOS: {losBonus}, Score: {score}");
+            return score;
         }).FirstOrDefault();
+
+        if (bestNode != null)
+        {
+            Debug.Log($"[Panic Node] Selected: {bestNode.name} at {bestNode.transform.position}");
+        }
+        else
+        {
+            Debug.LogWarning("[Panic Node] No valid node was selected!");
+        }
+
+        return bestNode ?? nodes[0]; // Ensure fallback
     }
+
 
 
     float GetLOSScore(Vector3 nodePos)
@@ -379,32 +492,30 @@ public class BoidManager : MonoBehaviour
     }
 
     void SetNodeColour(GameObject node, Color color)
-{
-    if (node == null)
     {
-        //Debug.LogWarning("SetNodeColour: Attempted to color a null node.");
-        return;
+        if (node == null)
+        {
+            Debug.LogWarning("SetNodeColour: Attempted to color a null node.");
+            return;
+        }
+
+        Renderer nodeRenderer = node.GetComponent<MeshRenderer>();
+        if (nodeRenderer == null)
+        {
+            Debug.LogWarning($"SetNodeColour: Node '{node.name}' at {node.transform.position} has no MeshRenderer.");
+            return;
+        }
+
+        if (nodeRenderer.material == null)
+        {
+            Debug.LogWarning($"SetNodeColour: Node '{node.name}' at {node.transform.position} has no Material assigned.");
+            return;
+        }
+
+        Debug.Log($"SetNodeColour: Changing color of '{node.name}' to {color}");
+        nodeRenderer.material.color = color;
     }
 
-    Renderer nodeRenderer = node.GetComponent<MeshRenderer>();
-
-    if (nodeRenderer == null)
-    {
-        //Debug.LogWarning($"SetNodeColour: Node '{node.name}' at {node.transform.position} has no MeshRenderer.");
-        return;
-    }
-
-    if (nodeRenderer.material == null)
-    {
-        //Debug.LogWarning($"SetNodeColour: Node '{node.name}' at {node.transform.position} has no Material assigned.");
-        return;
-    }
-
-    //Debug.Log($"SetNodeColour: Changing color of '{node.name}' at {node.transform.position} to {color}");
-
-    // Apply color change
-    nodeRenderer.material.color = color;
-}
 
 
 
@@ -427,8 +538,9 @@ public class BoidManager : MonoBehaviour
             Vector3 spawnPos = transform.position + Random.insideUnitSphere * spawnRadius;
             spawnPos.y = 1f;
             Boid newBoid = Instantiate(boidPrefab, spawnPos, Quaternion.identity, transform);
-            newBoid.target = target;
             boids.Add(newBoid);
+            newBoid.ChangeState(BoidState.Roaming);
+            newBoid.ChangeTarget(roamNode.transform);
         }
 
         if (DebugPlayerDetection)
@@ -452,10 +564,17 @@ public class BoidManager : MonoBehaviour
     public void RemoveBoid(Boid boid)
     {
         boids.Remove(boid);
+        if (roundActive && boids.Count == 0){ // ensure win check if this is last boid 
+            roundActive = false;
+            StartCoroutine(Win());
+        }
     }
 
     public bool AnyBoidsPanicking()
     {
         return boids.Exists(b => b.currentState == BoidState.Panicking);
     }
+
+
 }
+
