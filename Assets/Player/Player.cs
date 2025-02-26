@@ -5,6 +5,9 @@ using System.Collections.Generic;
 public class PlayerTest : MonoBehaviour
 {    
 
+    [Header("Animation")]
+    public Animator animator;
+
     [Header("Charge Stats")]
     public float chargeDamage = 5f; // Damage dealt per hit
     public float impactForce = 10f; // Max force applied to boids
@@ -33,6 +36,7 @@ public class PlayerTest : MonoBehaviour
     void Start()
     {
         controller = GetComponent<CharacterController>();
+        animator = GetComponent<Animator>();
 
         // Get player and boid layer indexes
         playerLayer = gameObject.layer;
@@ -57,6 +61,9 @@ public class PlayerTest : MonoBehaviour
             velocity.y = 0f;
         }
 
+        float speedValue = move.magnitude; // Movement speed value
+        animator.SetFloat("Speed", move.magnitude);
+
         // Press Space to perform a charge attack
         if (Input.GetKeyDown(KeyCode.Space) && !isCharging)
         {
@@ -74,6 +81,8 @@ public class PlayerTest : MonoBehaviour
     IEnumerator BiteAttack()
     {
         canBite = false;
+        // plays bite anim
+        animator.SetTrigger("Bite");
 
         // Detect boids in bite radius
         Collider[] hitBoids = Physics.OverlapSphere(bitePoint.position, biteRadius, boidLayer);
@@ -88,9 +97,7 @@ public class PlayerTest : MonoBehaviour
         }
 
         Debug.Log($"Bite Attack! Hit {hitBoids.Length} boids.");
-
-        // ToDo: Play animation, and hopefully particle effect
-        // Example: animator.SetTrigger("Bite");        
+ 
 
         yield return new WaitForSeconds(biteCooldown);
         canBite = true;
@@ -112,6 +119,7 @@ public class PlayerTest : MonoBehaviour
     {
         isCharging = true;
         hitBoids.Clear(); // Reset hit boids
+        animator.SetTrigger("Charge");
 
         // Disable collisions with boids
         Physics.IgnoreLayerCollision(playerLayer, boidLayerIndex, true);
@@ -129,8 +137,7 @@ public class PlayerTest : MonoBehaviour
         }
 
         // Re-enable collisions with boids after the charge
-        Physics.IgnoreLayerCollision(playerLayer, boidLayerIndex, false);
-
+        Physics.IgnoreLayerCollision(playerLayer, boidLayerIndex, false);        
         isCharging = false;
     }
 

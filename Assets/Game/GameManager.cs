@@ -54,7 +54,7 @@ public class GameManager : MonoBehaviour
     }
 
 
-    public void CheckWinCondition()
+    public void CheckWin()
     {
         if (!roundActive) return; // Avoid early checks before a round starts
 
