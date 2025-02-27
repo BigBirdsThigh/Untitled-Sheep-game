@@ -1700,8 +1700,8 @@ MonoBehaviour:
     - name: grass
       settings:
         brushRadius: 8
-        brushSpacing: 3
-        brushOverlapCheckMode: 0
+        brushSpacing: 0.3
+        brushOverlapCheckMode: 1
         brushOverlapDistance: 0.5
         brushOverlapCheckObjects: 1
         brushOverlapCheckLayers:
@@ -1717,8 +1717,8 @@ MonoBehaviour:
         randomizeOrientationZ: 0
         scaleTransformMode: 0
         scaleMode: 0
-        scaleUniformMin: 1
-        scaleUniformMax: 1.5
+        scaleUniformMin: 0.3
+        scaleUniformMax: 1
         scalePerAxisMin: {x: 1, y: 1, z: 1}
         scalePerAxisMax: {x: 1, y: 1, z: 1}
         pinFixedRotation: 0
@@ -1833,7 +1833,7 @@ MonoBehaviour:
       - gameObject: {fileID: 0}
       - gameObject: {fileID: 0}
       selectedSlot: 0
-      selected: 0
+      selected: 1
       colorTag: 0
       customPreviewImage: {fileID: 0}
     - name: powerup
@@ -2682,11 +2682,11 @@ MonoBehaviour:
     levelsInWhite: 255
     levelsOutBlack: 0
     levelsOutWhite: 255
-  activeTab: 0
+  activeTab: 2
   paintOnSelected: 0
   paintLayers:
     serializedVersion: 2
-    m_Bits: 65
+    m_Bits: 64
   ignoreLayers:
     serializedVersion: 2
     m_Bits: 32

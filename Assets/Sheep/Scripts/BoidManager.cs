@@ -425,7 +425,20 @@ public class BoidManager : MonoBehaviour
             return null;
         }
 
-        GameObject selectedNode = nodes.OrderBy(n => Random.value).FirstOrDefault();
+        GameObject selectedNode = nodes.OrderByDescending(n =>
+        {
+            // float distanceFromPlayer = Vector3.Distance(n.transform.position, player.position);
+            // float obstaclePenalty = GetObstacleScore(n.transform.position);
+            float groupCohesionBonus = GetGroupCohesionScore(n.transform.position);
+            float randomness = Random.Range(0f, 0.2f); // Small randomness to add variation
+
+            float score = (groupCohesionBonus * 0.4f) + randomness;
+            
+            // Debug.Log($"[Roam Node] Checking {n.name} | Distance: {distanceFromPlayer}, Obstacles: {obstaclePenalty}, Cohesion: {groupCohesionBonus}, Score: {score}");
+            
+            return score;
+        }).FirstOrDefault();
+
 
         if (selectedNode != null)
         {
@@ -502,6 +515,15 @@ public class BoidManager : MonoBehaviour
         // If no direct LOS, increase score
         return 5f; // Reward nodes that are hidden
     }
+
+
+    float GetGroupCohesionScore(Vector3 nodePos)
+    {
+        float cohesionDistance = Vector3.Distance(nodePos, transform.position); // BoidManager position - which is the avg position of all boids
+        return -cohesionDistance; // Lower distance = higher score
+    }
+
+
 
 
 

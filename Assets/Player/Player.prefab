@@ -376,8 +376,8 @@ MonoBehaviour:
     serializedVersion: 2
     m_Bits: 8
   biteRadius: 3
-  biteDamage: 2
-  biteCoolDown: 0.7
+  biteDamage: 3
+  biteCoolDown: 0.5
   bitePoint: {fileID: 4424572280393084837}
   speed: 5
   gravity: 9.81
