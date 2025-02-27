@@ -106,6 +106,7 @@ Material:
     - _Cutoff: 0.5
     - _DetailAlbedoMapScale: 1
     - _DetailNormalMapScale: 1
+    - _DistanceBoost: 0.167
     - _DstBlend: 0
     - _DstBlendAlpha: 0
     - _EnvironmentReflections: 1
@@ -114,10 +115,15 @@ Material:
     - _GlossyReflections: 0
     - _Metallic: 0
     - _OcclusionStrength: 1
+    - _OutlineStrength: 0
+    - _OutlineWidth: 0
     - _Parallax: 0.005
     - _QueueOffset: 0
     - _ReceiveShadows: 1
     - _RedBoost: 0
+    - _RimIntensity: 0.243
+    - _RimPower: 0
+    - _SeeThroughAmount: 0.773
     - _Smoothness: 0.5
     - _SmoothnessTextureChannel: 0
     - _SpecularHighlights: 1
@@ -125,10 +131,18 @@ Material:
     - _SrcBlendAlpha: 1
     - _Surface: 0
     - _WorkflowMode: 1
+    - _XrayDistance: 1
+    - _XrayIntensity: 0
+    - _XrayOpacity: 0.773
+    - _XrayThreshold: 1
     - _ZWrite: 1
     m_Colors:
     - _BaseColor: {r: 0.9056604, g: 0.09825563, b: 0.09825563, a: 1}
+    - _BehindColor: {r: 1, g: 0, b: 0, a: 1}
     - _Color: {r: 0.9056604, g: 0.09825563, b: 0.09825563, a: 1}
     - _EmissionColor: {r: 0, g: 0, b: 0, a: 1}
+    - _OutlineColor: {r: 1, g: 1, b: 0, a: 1}
+    - _SeeThroughColor: {r: 1, g: 0, b: 0, a: 1}
     - _SpecColor: {r: 0.2, g: 0.2, b: 0.2, a: 1}
+    - _XrayColor: {r: 1, g: 0, b: 0, a: 1}
   m_BuildTextureStacks: []

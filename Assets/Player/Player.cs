@@ -13,12 +13,20 @@ public class PlayerTest : MonoBehaviour
     public float impactForce = 10f; // Max force applied to boids
     public float knockbackRadius = 5f; // How far the knockback affects
     public float knockbackUpwardForce = 5f; // Vertical knock-up force
+    public float chargeCoolDown = 4.5f;
+    private bool canCharge = true;
     public LayerMask boidLayer; // Layer to detect boids
+
+
+    private float biteTimer = 0f;
+    private float chargeTimer = 0f;
+
+
 
     [Header("Bite Stats")]
     public float biteRadius = 2.5f; // Radius of bite attack
     public float biteDamage = 1f;   // Unique damage for bite attack
-    public float biteCooldown = 0.3f; // Cooldown to prevent spam
+    public float biteCoolDown = 0.7f; // Cooldown to prevent spam
     private bool canBite = true;
     public Transform bitePoint; // the point where bite originates
 
@@ -41,10 +49,39 @@ public class PlayerTest : MonoBehaviour
         // Get player and boid layer indexes
         playerLayer = gameObject.layer;
         boidLayerIndex = LayerMask.NameToLayer("Boid"); // Make sure boids are assigned to this layer
+        
+    }
+
+    public void ApplyUpgrades(){
+        biteDamage += UpgradeManager.Instance.biteDmgBonus;
+        chargeDamage += UpgradeManager.Instance.chargeDmgBonus;
+        knockbackRadius += UpgradeManager.Instance.chargeRadiusBonus;
+        chargeCoolDown = GetChargeCoolDown();
     }
 
     void Update()
     {
+
+        if (GameManager.Instance != null && GameManager.Instance.IsGamePaused()) return; // Prevent rotation when paused
+
+        // Handle Mouse Locking
+        if (Input.GetKeyDown(KeyCode.Escape))
+        {
+            Cursor.lockState = CursorLockMode.None;  // Unlock cursor
+            Cursor.visible = true;  // Make cursor visible
+        }
+        else if (Cursor.lockState != CursorLockMode.Locked && Input.GetMouseButtonDown(0)) 
+        {
+            Cursor.lockState = CursorLockMode.Locked; // Lock cursor to center
+            Cursor.visible = false;  // Hide cursor
+        }
+
+        // Update cooldown timers
+        if (biteTimer > 0) biteTimer -= Time.deltaTime;
+        if (chargeTimer > 0) chargeTimer -= Time.deltaTime;
+
+        UIManager.Instance?.UpdateCooldownUI(biteCoolDown, biteTimer, chargeCoolDown, chargeTimer);
+
         float moveX = Input.GetAxis("Horizontal");
         float moveZ = Input.GetAxis("Vertical");
 
@@ -61,11 +98,17 @@ public class PlayerTest : MonoBehaviour
             velocity.y = 0f;
         }
 
+        if (Cursor.lockState == CursorLockMode.Locked) // Only rotate if cursor is locked
+        {
+            float mouseX = Input.GetAxis("Mouse X") * 1.2f; // * is the sens
+            transform.Rotate(0, mouseX, 0);
+        }
+
         float speedValue = move.magnitude; // Movement speed value
         animator.SetFloat("Speed", move.magnitude);
 
         // Press Space to perform a charge attack
-        if (Input.GetKeyDown(KeyCode.Space) && !isCharging)
+        if (Input.GetKeyDown(KeyCode.Space) && !isCharging && canCharge)
         {
             StartCoroutine(ChargeAttack());
         }
@@ -81,6 +124,9 @@ public class PlayerTest : MonoBehaviour
     IEnumerator BiteAttack()
     {
         canBite = false;
+
+        biteTimer = biteCoolDown;
+
         // plays bite anim
         animator.SetTrigger("Bite");
 
@@ -99,7 +145,7 @@ public class PlayerTest : MonoBehaviour
         Debug.Log($"Bite Attack! Hit {hitBoids.Length} boids.");
  
 
-        yield return new WaitForSeconds(biteCooldown);
+        yield return new WaitForSeconds(biteCoolDown);
         canBite = true;
     }
 
@@ -113,12 +159,12 @@ public class PlayerTest : MonoBehaviour
 
 
 
-
-
     IEnumerator ChargeAttack()
     {
         isCharging = true;
+        canCharge = false;
         hitBoids.Clear(); // Reset hit boids
+        chargeTimer = chargeCoolDown; // Start cooldown timer
         animator.SetTrigger("Charge");
 
         // Disable collisions with boids
@@ -139,23 +185,12 @@ public class PlayerTest : MonoBehaviour
         // Re-enable collisions with boids after the charge
         Physics.IgnoreLayerCollision(playerLayer, boidLayerIndex, false);        
         isCharging = false;
+
+        // cooldown
+        yield return new WaitForSeconds(chargeCoolDown);
+        canCharge = true;
     }
 
-    // ** CALL THESE TO UPGRADE PLAYER STATS **
-
-    
-    public void UpgradeDamage()
-    {
-        chargeDamage += 1;
-        biteDamage += 1;
-    }
-
-    public void UpgradeRange() // upgrade charge attacks range
-    {
-        speed += 1;
-    }
-
-    // ** END SECTION **
 
     void ApplyKnockback()
     {
@@ -185,4 +220,13 @@ public class PlayerTest : MonoBehaviour
             }
         }
     }
+
+
+    float GetChargeCoolDown(){
+        float reductionFactor = 1f - (UpgradeManager.Instance?.chargeCoolDownBonus / 100f) ?? 0f;
+        float newCoolDown = chargeCoolDown * reductionFactor;
+
+        return Mathf.Clamp(newCoolDown, 2f, chargeCoolDown); // Prevent this going below 2s
+    }
+
 }

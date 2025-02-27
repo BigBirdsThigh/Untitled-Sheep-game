@@ -237,12 +237,12 @@ MonoBehaviour:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 2019358791787743474}
-  m_Enabled: 1
+  m_Enabled: 0
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 323e260f4889f7f4386df192a5e13c05, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  cullDistance: 50
+  cullDistance: 100
 --- !u!1 &2074456708265670498
 GameObject:
   m_ObjectHideFlags: 0
@@ -367,16 +367,17 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   animator: {fileID: 8797008596155374194}
-  chargeDamage: 5
-  impactForce: 8
+  chargeDamage: 11
+  impactForce: 9
   knockbackRadius: 2
-  knockbackUpwardForce: 15
+  knockbackUpwardForce: 13
+  chargeCoolDown: 4.5
   boidLayer:
     serializedVersion: 2
     m_Bits: 8
   biteRadius: 3
-  biteDamage: 1
-  biteCooldown: 0.3
+  biteDamage: 2
+  biteCoolDown: 0.7
   bitePoint: {fileID: 4424572280393084837}
   speed: 5
   gravity: 9.81

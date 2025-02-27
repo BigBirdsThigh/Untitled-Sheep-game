@@ -9,6 +9,7 @@ public class Boid : MonoBehaviour
 {
     public Rigidbody rb;
     private Vector3 velocity;    
+    public GameObject newModel;
 
     [Header("TEST")]
     public MaterialPropertyBlock materialBlock;    
@@ -54,7 +55,7 @@ public class Boid : MonoBehaviour
     public Transform target;
     private BoidManager boidManager;
     public Renderer boidRenderer;
-    
+    public float timeOnKill;
 
     public GameObject[] models;
 
@@ -68,6 +69,7 @@ public class Boid : MonoBehaviour
         rb.constraints = RigidbodyConstraints.FreezeRotationX | RigidbodyConstraints.FreezeRotationZ;
         boidManager = FindObjectOfType<BoidManager>();
         rb.collisionDetectionMode = CollisionDetectionMode.Discrete;
+        timeOnKill = 10f + UpgradeManager.Instance.extraTimeOnKill; // Base + upgrade
         BecomeSheep(orGoat);             
 
 
@@ -85,26 +87,34 @@ public class Boid : MonoBehaviour
     void FixedUpdate()
     {
         if (currentState == BoidState.Dead) return; // Stop updates when dead
+        if (currentState == BoidState.Roaming && newModel.layer != LayerMask.NameToLayer("BoidRoam")){            
+            newModel.layer = LayerMask.NameToLayer("BoidRoam");
+        }
+        
         if (Time.time < nextUpdateTime) return; // Skip if within interval
-        nextUpdateTime = Time.time + Random.Range(0.02f,0.08f); // stagger updates so we don't have each boid calling at once
+        nextUpdateTime = Time.time + Random.Range(0.02f, 0.08f); // Stagger updates
+
         Vector3 acceleration = Vector3.zero;
 
         if (currentState == BoidState.Roaming)
-            
-            // Skip some calculations on random frames to reduce load
+        {
             if (Time.frameCount % 7 == 0)
             {
                 acceleration += Roam();
-            }        
-
+            }
+        }
         else if (currentState == BoidState.Panicking)
-            acceleration += Panic();
+        {
+            acceleration += Panic(); // Ensure Panic updates speed properly
+        }
         else if (currentState == BoidState.Regrouping)
+        {
             acceleration += Regroup();
+        }
         else if (currentState == BoidState.Dead)
         {
             Die();
-            return; // Exit early since it's ded
+            return;
         }
 
         Vector3 avoidanceForce = AvoidObstacles() * obstacleAvoidanceWeight;
@@ -113,8 +123,9 @@ public class Boid : MonoBehaviour
             acceleration = Vector3.Lerp(acceleration, avoidanceForce, 0.8f);
         }
 
+        // **Ensure the speed update is applied properly**
         velocity += acceleration * Time.fixedDeltaTime;
-        velocity = velocity.normalized * speed;
+        velocity = velocity.normalized * speed; // Use the updated speed
 
         rb.velocity = new Vector3(velocity.x, rb.velocity.y, velocity.z);
 
@@ -124,6 +135,7 @@ public class Boid : MonoBehaviour
             rb.rotation = Quaternion.Slerp(rb.rotation, targetRotation, rotationSpeed * Time.fixedDeltaTime);
         }
     }
+
 
     // Pick one of the boid models at random
     public void BecomeSheep(float orGoat)
@@ -139,7 +151,7 @@ public class Boid : MonoBehaviour
         GameObject selectedModel = models[randomIndex];
 
         // Instantiate the new model as a child
-        GameObject newModel = Instantiate(selectedModel, transform);
+        newModel = Instantiate(selectedModel, transform);
 
         // Ensure proper positioning & rotation
         newModel.transform.localPosition = Vector3.zero;
@@ -245,6 +257,11 @@ public class Boid : MonoBehaviour
     // **STATE DEFINITIONS**
     Vector3 Roam()
     {
+
+        if(newModel.layer != LayerMask.NameToLayer("BoidRoam")){
+            newModel.layer = LayerMask.NameToLayer("BoidRoam");
+        }
+
         // Default flocking behavior
         float defaultSeparation = 3.2f;
         float defaultCohesion = 0.6f;
@@ -262,48 +279,48 @@ public class Boid : MonoBehaviour
     Vector3 Panic()
     {
         float safeDistance = 10f; // Distance from player where panic starts decreasing
-        float minSeparation = 2.7f; // Lowest separation value
-        float maxSeparation = 9f; // Highest separation value
-        
+        float minSeparation = 2.7f;
+        float maxSeparation = 9f;
+
         obstacleAvoidanceWeight = 11f;
 
+        // increase speed and rotation speed
         speed = 6f;
+        rotationSpeed = 9f;
 
-         GameObject panicNode = boidManager.GetCurrPanicNode();
-
+        GameObject panicNode = boidManager.GetCurrPanicNode();
         if (panicNode != null)
         {
             target = panicNode.transform;
         }
 
-        // Distance check for reducing panic effect
         float distanceFromPlayer = Vector3.Distance(transform.position, boidManager.player.position);
 
         if (distanceFromPlayer > safeDistance)
         {
             panicTimer -= Time.deltaTime * 1.2f; // Slow cooldown when safe
-            panicTimer = Mathf.Clamp(panicTimer, 0f, panicDuration); // Prevent negative panic
+            panicTimer = Mathf.Clamp(panicTimer, 0f, panicDuration);
         }
         else
         {
-            panicTimer += Time.deltaTime; // Keep panicking if close to player
+            panicTimer += Time.deltaTime;
         }
 
-        // Gradually reduce separation based on remaining panic time
-        float panicFactor = panicTimer / panicDuration; // Ranges from 0 to 1
+        float panicFactor = panicTimer / panicDuration;
         separationWeight = Mathf.Lerp(minSeparation, maxSeparation, panicFactor);
 
-        // Exit panic mode when fully calmed down
         if (panicTimer <= 0)
         {
-            speed = 3.4f;
+            speed = 3.4f; // Reset speed when panic ends
+            rotationSpeed = 5f;
             obstacleAvoidanceWeight = 5.5f;
             ChangeState(BoidState.Regrouping);
-        }     
-        // Move toward panic node while still applying some flocking behaviors
-        Vector3 moveToPanicNode = SeekTarget() * 3f;
+        }
+
+        Vector3 moveToPanicNode = SeekTarget() * 5f;
         return moveToPanicNode + Align() * alignmentWeight + Cohere() * cohesionWeight + Separate() * separationWeight;
     }
+
 
 
 
@@ -388,8 +405,8 @@ public class Boid : MonoBehaviour
         {
             boidManager.RemoveBoid(this);
         }
-        TimeManager.Instance?.AddTime(10f);
-        UIManager.Instance?.AddTimeEffect(10f);
+        TimeManager.Instance?.AddTime(timeOnKill);
+        UIManager.Instance?.AddTimeEffect(timeOnKill);
     }
 
 
@@ -437,8 +454,8 @@ public class Boid : MonoBehaviour
 
     bool PlayerIsNear()
     {
-        int rayCount = 9; // Number of rays for vision cone
-        float maxAngle = 90f; // Full field of view angle
+        int rayCount = 11; // Number of rays for vision cone
+        float maxAngle = 110f; // Full field of view angle
         float stepAngle = maxAngle / (rayCount - 1); // Angle step per ray
         float detectionRange = playerDetectionRange;
         RaycastHit hit;
@@ -513,27 +530,36 @@ public class Boid : MonoBehaviour
                 ChangeTarget(panicNode.transform);
             }
         }
-        
+
+        if (newState == BoidState.Roaming){
+            newModel.layer = LayerMask.NameToLayer("BoidRoam");
+        }else{
+            newModel.layer = LayerMask.NameToLayer("Boid");
+        }
+
         // Debugging visual changes
         if (boidRenderer != null)
         {
+            Material boidMaterial = boidRenderer.material;
+
             switch (newState)
             {
                 case BoidState.Roaming:
-                    boidRenderer.material.color = Color.green;
+                    boidMaterial.color = Color.green;                    
                     break;
                 case BoidState.Panicking:
-                    boidRenderer.material.color = Color.red;
+                    boidMaterial.color = Color.red;                    
                     break;
                 case BoidState.Regrouping:
-                    boidRenderer.material.color = Color.blue;
+                    boidMaterial.color = Color.blue;                    
                     break;
                 case BoidState.Dead:
-                    boidRenderer.material.color = Color.black;
+                    boidMaterial.color = Color.black;                    
                     break;
             }
         }
     }
+
 
 
 
@@ -561,44 +587,58 @@ public class Boid : MonoBehaviour
 
     Vector3 AvoidObstacles()
     {
-        if (Time.frameCount % 5 != 0) return Vector3.zero; // Skip check every few frames
+        if (Time.frameCount % 3 != 0) return Vector3.zero; // Skip some frames for performance
 
-        float checkRadius = obstacleCheckDistance;
-        Collider[] hits = Physics.OverlapSphere(transform.position, checkRadius, LayerMask.GetMask("Obstacle"));
-
-        if (hits.Length == 0)
-        {
-            if (debugAvoidance)
-            {
-                Debug.DrawRay(transform.position, transform.forward * checkRadius, Color.green, 0.1f);
-            }
-            return Vector3.zero; // No obstacles detected
-        }
+        int rayCount = 21; // More rays than PlayerIsNear for better coverage
+        float maxAngle = 160f; // Wider field of view for better avoidance
+        float stepAngle = maxAngle / (rayCount - 1); // Angle step between rays
+        float detectionRange = obstacleCheckDistance; // Distance to check for obstacles
 
         Vector3 avoidanceDir = Vector3.zero;
-        int count = 0;
+        int validHits = 0;
 
-        foreach (Collider hit in hits)
+        for (int i = 0; i < rayCount; i++)
         {
-            if (!avoidanceTags.Contains(hit.tag)) continue;
+            float angle = -maxAngle / 2 + (stepAngle * i); // Spread rays evenly
+            Vector3 rayDirection = Quaternion.Euler(0, angle, 0) * transform.forward; // Rotate ray from forward direction
+            RaycastHit hit;
 
-            Vector3 awayFromObstacle = (transform.position - hit.transform.position).normalized;
-            avoidanceDir += awayFromObstacle;
-            count++;
-
-            if (debugAvoidance)
+            if (Physics.Raycast(transform.position, rayDirection, out hit, detectionRange, LayerMask.GetMask("Obstacle")))
             {
-                Debug.DrawRay(transform.position, awayFromObstacle * checkRadius, Color.red, 0.1f);
+                if (!avoidanceTags.Contains(hit.collider.tag)) continue; // Only avoid specific obstacles
+
+                Vector3 awayFromObstacle = (transform.position - hit.point).normalized; // Move away from hit point
+                avoidanceDir += awayFromObstacle; // Accumulate avoidance direction
+                validHits++;
+
+                // Debugging: Red if hitting an obstacle
+                if (debugAvoidance)
+                {
+                    Debug.DrawRay(transform.position, rayDirection * hit.distance, Color.red, 0.1f);
+                }
+            }
+            else
+            {
+                // Debugging: Green if clear path
+                if (debugAvoidance)
+                {
+                    Debug.DrawRay(transform.position, rayDirection * detectionRange, Color.green, 0.1f);
+                }
             }
         }
 
-        if (count > 0)
+        if (validHits > 0)
         {
-            avoidanceDir /= count;
-            return avoidanceDir.normalized * 2.5f;
+            avoidanceDir /= validHits; // Average direction
+            return avoidanceDir.normalized * 2.5f; // Adjust strength of avoidance
         }
 
         return Vector3.zero;
+    }
+
+
+    public void SetHealth(float startHealth){
+        this.health = startHealth;
     }
 
 

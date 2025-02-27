@@ -147,9 +147,10 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   rb: {fileID: 4819321469724616370}
+  newModel: {fileID: 0}
   speed: 3.4
   rotationSpeed: 5
-  neighborRadius: 8
+  neighborRadius: 10
   deathVFXPrefab: {fileID: 3589807288391457214, guid: 47fa8728959e6ac4bad426cb970a9769, type: 3}
   avoidanceRadius: 1.56
   avoidanceTags:
@@ -158,8 +159,8 @@ MonoBehaviour:
   alignmentWeight: 0.9
   cohesionWeight: 0.6
   separationWeight: 2.7
-  targetFollowWeight: 2.9
-  obstacleAvoidanceWeight: 5.5
+  targetFollowWeight: 4.7
+  obstacleAvoidanceWeight: 6.7
   currentState: 0
   panicDuration: 15
   health: 10
@@ -170,6 +171,7 @@ MonoBehaviour:
   debugStateChanges: 0
   target: {fileID: 0}
   boidRenderer: {fileID: 0}
+  timeOnKill: 0
   models:
   - {fileID: 8046052302812411794, guid: 5d2311dabf3b3b24595d5f090b8dca84, type: 3}
   - {fileID: 7821497985114978910, guid: 8e4c075787763c046b46c0b4f36d3637, type: 3}

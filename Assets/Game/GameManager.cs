@@ -12,8 +12,7 @@ public class GameManager : MonoBehaviour
     private GameObject currPlayer;
 
     [Header("Round System")]
-    public int currRound = 1; // start at round 1
-    public int startingBoids = 5; // initial boids num
+    public int currRound = 1; // start at round 1    
     public float startingTime = 180f; // first timer
     private bool roundActive = false; // Ensure rounds don’t check win too early
 
@@ -49,7 +48,7 @@ public class GameManager : MonoBehaviour
         roundActive = true;
         UIManager.Instance?.UpdateRoundUI(currRound);
 
-        BoidManager.Instance?.ResetRound(startingBoids);
+        BoidManager.Instance?.ResetRound(10); // hardcoding 1st boids, for some reason round 1 wouldn't spawn properly
         TimeManager.Instance?.StartTimer(startingTime);
     }
 
@@ -66,6 +65,11 @@ public class GameManager : MonoBehaviour
             roundActive = false;
             TriggerWin();
         }
+    }
+
+    private int CalculateBoidCount(int round)
+    {
+        return Mathf.FloorToInt(10 * Mathf.Pow(1.2f, round) + 5 * round);
     }
 
 
@@ -134,6 +138,7 @@ public class GameManager : MonoBehaviour
         if (gamePaused) return;
         
         Debug.Log("GAME OVER! Displaying restart screen.");
+        UpgradeManager.Instance.ResetUpgrades(); // Reset upgrades when the game is lost.
         Time.timeScale = 0f;
         gamePaused = true;
         UIManager.Instance?.ShowGameOverScreen();
@@ -149,6 +154,26 @@ public class GameManager : MonoBehaviour
 
     private void Update()
     {
+
+        if (Input.GetKeyDown(KeyCode.P))
+        {
+            Cursor.lockState = CursorLockMode.None;  // Unlock cursor when triggering cheat
+            Cursor.visible = true;
+
+            BoidManager.Instance?.DestroyAllBoids();
+            TriggerWin();
+        }
+
+
+        if (Input.GetKeyDown(KeyCode.L))
+        {
+            Cursor.lockState = CursorLockMode.None;  // Unlock cursor when triggering cheat
+            Cursor.visible = true;
+            
+            TriggerLose();
+        }
+
+
         if (roundActive)
         {
             CheckLoseCondition(); // Time-based loss check
@@ -162,9 +187,16 @@ public class GameManager : MonoBehaviour
         gamePaused = false;
         roundActive = true;
 
-        int newBoidCount = Random.Range(5 + (currRound * 2), 25 + (currRound * 3)); // Increase boids per round
+        int newBoidCount = CalculateBoidCount(currRound);
         BoidManager.Instance?.ResetRound(newBoidCount);
         float currTime = TimeManager.Instance?.GetRemainingTime() ?? startingTime; // default to starting time if the time somehow is not available
+
+        PlayerTest playerScript = currPlayer.GetComponent<PlayerTest>();
+        if (playerScript != null)
+        {
+            playerScript.ApplyUpgrades();
+        }        
+
         TimeManager.Instance?.StartTimer(currTime);
     }
 
@@ -172,13 +204,12 @@ public class GameManager : MonoBehaviour
     {
         Time.timeScale = 1f; // Resume the game
         gamePaused = false;
-        roundActive = true;
-        int newBoidCount = startingBoids; // start with initial boid count
+        roundActive = true;        
         
         currRound = 1;
 
         UIManager.Instance?.UpdateRoundUI(currRound);
-
+        int newBoidCount = CalculateBoidCount(currRound); // start with initial boid count
         // Respawn the player
         SpawnPlayer();
         

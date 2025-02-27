@@ -73,17 +73,36 @@ public class TimeManager : MonoBehaviour
     {
         while (timerRunning && timeRemaining > 0)
         {
-            yield return new WaitForSeconds(1f);
-            timeRemaining--;
+            yield return new WaitForSeconds(1f); // Normal tick interval
 
-            // if (timeRemaining <= 0)
-            // {
-            //     TimerExpired();
-            // }
+            var (roaming, panicking, regrouping) = BoidManager.Instance.GetBoidStateCounts();
+            int totalBoids = BoidManager.Instance.boids.Count;
+
+            if (panicking > 0)
+            {
+                timeRemaining--; // Normal decrement
+                UIManager.Instance?.SetNodeColour(Color.red); // Normal timer (red)
+            }
+            else if (roaming == totalBoids)
+            {
+                UIManager.Instance?.SetNodeColour(Color.green); // Timer paused (green)
+                continue; // Skip decrement
+            }
+            else if (panicking == 0 && regrouping > 0) // No panic, but regrouping
+            {
+                timeRemaining -= 0.5f; // Slow down timer decrement
+                UIManager.Instance?.SetNodeColour(Color.blue); // Slower decrement (blue)
+            }
+            else
+            {
+                timeRemaining--; // Default decrement
+                UIManager.Instance?.SetNodeColour(Color.red);
+            }
         }
 
         timerCoroutine = null; // Reset coroutine reference when finished
     }
+
 
     /// Handles what happens when the timer runs out.
     // private void TimerExpired()

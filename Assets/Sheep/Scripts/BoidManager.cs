@@ -57,8 +57,10 @@ public class BoidManager : MonoBehaviour
     {
         boids.RemoveAll(b => b == null); // Remove destroyed boids
 
-        int regroupingBoids = GetRegroupingCount();
-        int totalBoids = boids.Count;
+        int regroupingBoids = GetRegroupingBoids();
+        int regroupingNearManager = GetRegroupingBoidsNearManager();
+
+
 
         //Debug.Log($"Total Boids: {totalBoids}, Round Active?: {roundActive}");
 
@@ -70,14 +72,16 @@ public class BoidManager : MonoBehaviour
         //     StartCoroutine(Win());
         // }
 
-        if (regroupingBoids >= totalBoids * 0.7f)
-        {
-            foreach (Boid boid in boids)
-            {
-                if (boid != null)
-                {
-                    boid.ChangeState(BoidState.Roaming);
-                    boid.ChangeTarget(roamNode.transform);
+        if(regroupingBoids > 0){ // only check if we have regrouping boids
+            
+            int requiredBoids = Mathf.CeilToInt(regroupingBoids*0.7f);
+
+            if(regroupingNearManager >= requiredBoids){
+                foreach(Boid boid in boids){
+                    if(boid.currentState == BoidState.Regrouping){
+                        boid.ChangeState(BoidState.Roaming);
+                        boid.ChangeTarget(roamNode.transform);
+                    }
                 }
             }
         }
@@ -149,6 +153,21 @@ public class BoidManager : MonoBehaviour
         }
 
     }
+
+    public void DestroyAllBoids()
+    {
+        foreach (Boid boid in boids)
+        {
+            if (boid != null)
+            {
+                Destroy(boid.gameObject);
+            }
+        }
+        boids.Clear(); // Ensure the list is empty
+
+        Debug.Log("[BoidManager] All boids have been destroyed.");
+    }
+
 
     private IEnumerator Win()
     {
@@ -242,8 +261,9 @@ public class BoidManager : MonoBehaviour
             }
         }
 
-        roamNode = bestNode;  // Make sure we assign a roamNode
-        panicNode = GetBestPanicNode(); // Assign a panicNode immediately
+        // Assign roam and panic nodes immediately
+        roamNode = GetBestRoamNode();
+        panicNode = GetBestPanicNode();
 
         return bestNode;
     }
@@ -532,26 +552,56 @@ public class BoidManager : MonoBehaviour
 
 
 
-
-    public int GetRegroupingCount()
+    public int GetRegroupingBoids()
     {
-        return boids.FindAll(b => b.currentState == BoidState.Regrouping).Count;
+        return boids.Count(b => b.currentState == BoidState.Regrouping);
     }
+
 
     public int GetRegroupingBoidsNearManager()
     {
-        float regroupingRadius = 5f;
+        float regroupingRadius = 15f;
         return boids.FindAll(b => b.currentState == BoidState.Regrouping &&
                                   Vector3.Distance(b.transform.position, transform.position) <= regroupingRadius).Count;
     }
 
+
+    public float CalculateBoidHealth(int round, int maxHealthRound = 7)
+    {
+        if (round >= maxHealthRound)
+            return 40f; // Hard cap at 40
+
+        return (30f / (maxHealthRound - 1)) * (round - 1) + 10f;
+    }
+
+
+    public (int roaming, int panicking, int regrouping) GetBoidStateCounts()
+    {
+        int roaming = 0, panicking = 0, regrouping = 0;
+
+        foreach (var boid in boids)
+        {
+            if (boid.currentState == BoidState.Roaming) roaming++;
+            else if (boid.currentState == BoidState.Panicking) panicking++;
+            else if (boid.currentState == BoidState.Regrouping) regrouping++;
+        }
+
+        return (roaming, panicking, regrouping);
+    }
+
+
     public void SpawnBoids(int boidCount)
     {
+        // Calculate boids health for the round        
+        int round = GameManager.Instance?.currRound ?? 0;
+        float boidHealth = Mathf.Floor(CalculateBoidHealth(round));
+
         for (int i = 0; i < boidCount; i++)
         {
             Vector3 spawnPos = transform.position + Random.insideUnitSphere * spawnRadius;
             spawnPos.y = 1f;
             Boid newBoid = Instantiate(boidPrefab, spawnPos, Quaternion.identity, transform);
+            newBoid.SetHealth(boidHealth); // Set health on spawn
             boids.Add(newBoid);
             newBoid.ChangeState(BoidState.Roaming);
             newBoid.ChangeTarget(roamNode.transform);
