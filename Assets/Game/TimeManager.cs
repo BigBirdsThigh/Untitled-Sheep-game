@@ -81,22 +81,22 @@ public class TimeManager : MonoBehaviour
             if (panicking > 0)
             {
                 timeRemaining--; // Normal decrement
-                UIManager.Instance?.SetNodeColour(Color.red); // Normal timer (red)
+                UIManager.Instance?.SetTimerColour(Color.red); // Normal timer (red)
             }
             else if (roaming == totalBoids)
             {
-                UIManager.Instance?.SetNodeColour(Color.green); // Timer paused (green)
+                UIManager.Instance?.SetTimerColour(Color.green); // Timer paused (green)
                 continue; // Skip decrement
             }
             else if (panicking == 0 && regrouping > 0) // No panic, but regrouping
             {
                 timeRemaining -= 0.5f; // Slow down timer decrement
-                UIManager.Instance?.SetNodeColour(Color.blue); // Slower decrement (blue)
+                UIManager.Instance?.SetTimerColour(Color.blue); // Slower decrement (blue)
             }
             else
             {
                 timeRemaining--; // Default decrement
-                UIManager.Instance?.SetNodeColour(Color.red);
+                UIManager.Instance?.SetTimerColour(Color.red);
             }
         }
 
